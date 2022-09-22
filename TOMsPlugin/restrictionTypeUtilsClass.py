@@ -263,7 +263,7 @@ class TOMsLayers(QObject):
 
     def getTOMsFormPathFromConfigFile(self, configFileObject):
         formPath = configFileObject.getTOMsConfigElement("TOMsLayers", "form_path")
-        return formPath
+        return os.path.expandvars(formPath)  # expand env var like USERPROFILE
 
     def setLayers(self, configFileObject):
 
@@ -290,7 +290,7 @@ class TOMsLayers(QObject):
 
             self.formPath = self.getTOMsFormPathFromConfigFile(configFileObject)
             TOMsMessageLog.logMessage(
-                "In TOMsLayers:getLayers. formPath is {} ...".format(self.formPath),
+                "In TOMsLayers:setLayers. formPath is {} ...".format(self.formPath),
                 level=Qgis.Info,
             )
 
@@ -312,14 +312,25 @@ class TOMsLayers(QObject):
                     )[0]
                     # set paths for forms
                     layerEditFormConfig = self.tomsLayerDict[layer].editFormConfig()
+
+                    if len(layerEditFormConfig.initFilePath()) > 0:
+                        TOMsMessageLog.logMessage(
+                            "In TOMsLayers:setLayers. cleaning useless initFilePath for layer {}...".format(
+                                layer
+                            ),
+                            level=Qgis.Info,
+                        )
+                        layerEditFormConfig.setInitFilePath("")
+                        self.tomsLayerDict[layer].setEditFormConfig(layerEditFormConfig)
+
                     uiPath = layerEditFormConfig.uiForm()
-                    TOMsMessageLog.logMessage(
-                        "In TOMsLayers:getLayers. ui_path for layer {} is {} ...".format(
-                            layer, uiPath
-                        ),
-                        level=Qgis.Info,
-                    )
-                    if len(self.formPath) > 0 and len(uiPath) > 0:
+                    if len(uiPath) > 0:
+                        TOMsMessageLog.logMessage(
+                            "In TOMsLayers:setLayers. current ui_path for layer {} is {} ...".format(
+                                layer, uiPath
+                            ),
+                            level=Qgis.Info,
+                        )
                         # try to get basename - doesn't seem to work on Linux
                         # base_ui_path = os.path.basename(ui_path)
                         pathAbsolute = os.path.abspath(
@@ -327,14 +338,14 @@ class TOMsLayers(QObject):
                         )
                         if not os.path.isfile(pathAbsolute):
                             TOMsMessageLog.logMessage(
-                                "In TOMsLayers:getLayers.form path not found for layer {} ...".format(
+                                "In TOMsLayers:setLayers. form path not found for layer {} ...".format(
                                     layer
                                 ),
                                 level=Qgis.Warning,
                             )
                         else:
                             TOMsMessageLog.logMessage(
-                                "In TOMsLayers:getLayers.setting new path for form {} ...".format(
+                                "In TOMsLayers:setLayers. setting new path for form {} ...".format(
                                     pathAbsolute
                                 ),
                                 level=Qgis.Info,
@@ -345,6 +356,13 @@ class TOMsLayers(QObject):
                             )
 
                             # TODO: may need to reinstate original values here - so save them somewhere useful
+                    else:
+                        TOMsMessageLog.logMessage(
+                            "In TOMsLayers:setLayers. no ui_path for layer {}".format(
+                                layer
+                            ),
+                            level=Qgis.Info,
+                        )
 
                 else:
                     QMessageBox.information(
