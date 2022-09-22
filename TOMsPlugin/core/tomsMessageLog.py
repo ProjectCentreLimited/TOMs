@@ -37,27 +37,12 @@ class TOMsMessageLog:
 
     filename = ""
     currLoggingLevel = Qgis.Info
+    DEBUG = logging.DEBUG
     tomsLogFileHandler = None
-
-    @staticmethod
-    def currentLoggingLevel() -> int:
-        """Get minimum logging level to be logged (default = Info)"""
-        currLoggingLevel = int(Qgis.Info)
-        qLevel = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable(
-            "TOMs_Logging_Level"
-        )
-        if qLevel is not None:
-            currLoggingLevel = int(qLevel)
-            QgsMessageLog.logMessage(
-                "Logging level read from TOMs_Logging_Level project variable"
-            )
-
-        return currLoggingLevel
 
     @staticmethod
     def logMessage(msg: str, *args: Any, **kwargs: Any) -> None:
         """forward message to qgis and python logging"""
-        currLevel = TOMsMessageLog.currLoggingLevel
         # check to see if a logging level has been set
         # qLevel can also be equals to logging.DEBUG
         qLevel = kwargs.get("level") or Qgis.Info
@@ -87,8 +72,9 @@ class TOMsMessageLog:
 
         # >>>>> QGIS logging part
         if (
-            logging.DEBUG > messageLevel >= currLevel
+            logging.DEBUG > messageLevel >= TOMsMessageLog.currLoggingLevel
         ):  # disable when messageLevel is DEBUG as QGIS does not handle it
+            kwargs["level"] = messageLevel
             QgsMessageLog.logMessage(msg, *args, **kwargs, tag="TOMs Panel")
 
     @classmethod

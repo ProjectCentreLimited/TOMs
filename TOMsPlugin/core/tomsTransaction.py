@@ -160,12 +160,6 @@ class TOMsTransaction(QObject):
             "In TOMsTransaction:commitTransactionGroup", level=Qgis.Warning
         )
 
-        # unset map tool. I don't understand why this is required, but ... without it QGIS crashes
-        #  iface.mapCanvas().unsetMapTool(iface.mapCanvas().mapTool())
-
-        if not self.currTransactionGroup.modified():
-            return
-
         if not self.currTransactionGroup:
             TOMsMessageLog.logMessage(
                 "In TOMsTransaction:commitTransactionGroup. Transaction DOES NOT exist",
@@ -198,14 +192,7 @@ class TOMsTransaction(QObject):
             layer.rollBack()
 
         self.errorOccurred = False
-
-        try:
-            self.proposalsManager.updateMapCanvas()
-        except Exception:
-            TOMsMessageLog.logMessage(
-                "In TOMsTransaction:commitTransactionGroup. Issue updating map canvas *** ...",
-                level=Qgis.Warning,
-            )
+        self.proposalsManager.updateMapCanvas()
 
     def layersInTransaction(self):
         return self.setTransactionGroup

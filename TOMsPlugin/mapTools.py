@@ -10,8 +10,6 @@
 # Oslandia 2022
 
 import math
-import sys
-import traceback
 import uuid
 
 from qgis.core import (
@@ -22,16 +20,13 @@ from qgis.core import (
     QgsFeature,
     QgsFeatureRequest,
     QgsGeometry,
-    QgsPointLocator,
     QgsProject,
     QgsRectangle,
-    QgsSnappingConfig,
-    QgsTolerance,
     QgsTracer,
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.gui import QgsMapToolAdvancedDigitizing, QgsMapToolCapture, QgsMapToolIdentify
+from qgis.gui import QgsMapToolCapture, QgsMapToolIdentify
 from qgis.PyQt.QtCore import (
     QPoint,
     Qt,
@@ -40,10 +35,8 @@ from qgis.PyQt.QtCore import (
 )
 from qgis.PyQt.QtWidgets import (
     QAction,
-    QDockWidget,
     QMenu,
     QMessageBox,
-    QPushButton,
     QToolTip,
 )
 from qgis.utils import iface
@@ -51,11 +44,7 @@ from qgis.utils import iface
 from .constants import RestrictionAction, RestrictionLayers
 from .core.tomsMessageLog import TOMsMessageLog
 from .core.tomsTransaction import TOMsTransaction
-from .restrictionTypeUtilsClass import (
-    OriginalFeature,
-    RestrictionTypeUtilsMixin,
-    TOMsLabelLayerNames,
-)
+from .restrictionTypeUtilsClass import RestrictionTypeUtilsMixin, TOMsLabelLayerNames
 
 
 class MapToolMixin:
@@ -707,6 +696,111 @@ class CreateRestrictionTool(RestrictionTypeUtilsMixin, QgsMapToolCapture):
                 dialog.show()
 
 
+def checkSplitGeometries(currentProposal):
+    """
+    When a geometry is split we need to deal with the new feature, and check whether or not the feature is part of the current proposal
+    """
+
+    TOMsMessageLog.logMessage("In checkSplitGeometries ... ", level=Qgis.Info)
+    origLayer = iface.activeLayer()
+
+    # Getting split feature and new features
+    featList = list(origLayer.editBuffer().changedGeometries().keys())
+    if len(featList) > 1:
+        raise ValueError("More than one feature split")
+    modifiedFeature = origLayer.getFeature(featList[0])
+    newFeatures = list(origLayer.editBuffer().addedFeatures().values())
+
+    restrictionsInProposalsLayer = QgsProject.instance().mapLayersByName(
+        "RestrictionsInProposals"
+    )[0]
+    restrictionsLayers = QgsProject.instance().mapLayersByName("RestrictionLayers")[0]
+    currRestrictionLayerID = next(
+        restrictionsLayers.getFeatures(
+            QgsFeatureRequest().setFilterExpression(
+                f'"RestrictionLayerName" = \'{origLayer.name().split(".")[0]}\''
+            )
+        )
+    ).attribute("code")
+
+    for newFeature in newFeatures:
+        restrictionId = str(uuid.uuid4())
+        newFeature["RestrictionID"] = restrictionId
+        newFeature["OpenDate"] = None
+        newFeature["CloseDate"] = None
+        newFeature["GeometryID"] = None
+        newRestrictionInProposal = QgsFeature(restrictionsInProposalsLayer.fields())
+        newRestrictionInProposal.setGeometry(QgsGeometry())
+        newRestrictionInProposal["ProposalID"] = currentProposal
+        newRestrictionInProposal["RestrictionID"] = restrictionId
+        newRestrictionInProposal["RestrictionTableID"] = currRestrictionLayerID
+        newRestrictionInProposal[
+            "ActionOnProposalAcceptance"
+        ] = RestrictionAction.OPEN.value
+        if not restrictionsInProposalsLayer.addFeature(newRestrictionInProposal):
+            raise Exception("Unable to add feature")
+
+    # Check if the split feature was in the current proposal
+    restrictionFound = (
+        len(
+            list(
+                restrictionsInProposalsLayer.getFeatures(
+                    QgsFeatureRequest().setFilterExpression(
+                        f'"RestrictionID" = \'{modifiedFeature["RestrictionID"]}\' and '
+                        f'"RestrictionTableID" = {currRestrictionLayerID} and '
+                        f'"ProposalID" = {currentProposal}'
+                    )
+                )
+            )
+        )
+        == 1
+    )
+    if not restrictionFound:
+        #  This one is not in the current Proposal, so now we need to:
+        #  - create a new feature, duplicate of modifiedFeature but with a new ID
+        #  - add it to the layer
+        #  - give back the original geometry to the modified feature
+        #  - add the details to RestrictionsInProposal
+
+        newFeature = QgsFeature(origLayer.fields())
+        newFeature.setAttributes(modifiedFeature.attributes())
+        newFeature.setGeometry(modifiedFeature.geometry())
+        restrictionId = str(uuid.uuid4())
+        newFeature["RestrictionID"] = restrictionId
+        newFeature["OpenDate"] = None
+        newFeature["CloseDate"] = None
+        newFeature["GeometryID"] = None
+        if not origLayer.addFeature(newFeature):
+            raise Exception(
+                "Unable to add feature\n" + "\n".join(origLayer.commitErrors())
+            )
+        newRestrictionInProposal = QgsFeature(restrictionsInProposalsLayer.fields())
+        newRestrictionInProposal.setGeometry(QgsGeometry())
+        newRestrictionInProposal["ProposalID"] = currentProposal
+        newRestrictionInProposal["RestrictionID"] = restrictionId
+        newRestrictionInProposal["RestrictionTableID"] = currRestrictionLayerID
+        newRestrictionInProposal[
+            "ActionOnProposalAcceptance"
+        ] = RestrictionAction.OPEN.value
+        if not restrictionsInProposalsLayer.addFeature(newRestrictionInProposal):
+            raise Exception("Unable to add feature")
+
+        unmodifiedLayer = QgsVectorLayer(origLayer.source(), "", "postgres")
+        originalGeometry = list(
+            unmodifiedLayer.getFeatures(
+                f'"RestrictionID" = \'{modifiedFeature["RestrictionID"]}\''
+            )
+        )[0].geometry()
+        modifiedFeature.setGeometry(originalGeometry)
+
+    else:
+        # Clear dates but keep everything else
+        modifiedFeature["OpenDate"] = None
+        modifiedFeature["CloseDate"] = None
+
+    origLayer.removeSelection()
+
+
 def checkEditedGeometries(currentProposal):
     """
     When a geometry is changed we need to check whether or not the feature is part of the current proposal
@@ -720,379 +814,76 @@ def checkEditedGeometries(currentProposal):
     )[0]
     restrictionsLayers = QgsProject.instance().mapLayersByName("RestrictionLayers")[0]
 
-    for featId in origLayer.editBuffer().changedGeometries().keys():
-        # get details of the selected feature
-
-        currRestriction = origLayer.getFeature(featId)
-        currRestrictionLayerID = next(
-            restrictionsLayers.getFeatures(
-                QgsFeatureRequest().setFilterExpression(
-                    f'"RestrictionLayerName" = \'{origLayer.name().split(".")[0]}\''
-                )
+    featList = list(origLayer.editBuffer().changedGeometries().keys())
+    if len(featList) > 1:
+        raise ValueError("More than one feature edited")
+    featId = featList[0]
+    currRestriction = origLayer.getFeature(featId)
+    currRestrictionLayerID = next(
+        restrictionsLayers.getFeatures(
+            QgsFeatureRequest().setFilterExpression(
+                f'"RestrictionLayerName" = \'{origLayer.name().split(".")[0]}\''
             )
-        ).attribute("code")
-        restrictionFound = (
-            len(
-                list(
-                    restrictionsInProposalsLayer.getFeatures(
-                        QgsFeatureRequest().setFilterExpression(
-                            f'"RestrictionID" = \'{currRestriction["RestrictionID"]}\' and '
-                            f'"RestrictionTableID" = {currRestrictionLayerID} and '
-                            f'"ProposalID" = {currentProposal}'
-                        )
+        )
+    ).attribute("code")
+    restrictionFound = (
+        len(
+            list(
+                restrictionsInProposalsLayer.getFeatures(
+                    QgsFeatureRequest().setFilterExpression(
+                        f'"RestrictionID" = \'{currRestriction["RestrictionID"]}\' and '
+                        f'"RestrictionTableID" = {currRestrictionLayerID} and '
+                        f'"ProposalID" = {currentProposal}'
                     )
                 )
             )
-            == 1
         )
-        if not restrictionFound:
-            #  This one is not in the current Proposal, so now we need to:
-            #  - generate a new ID and assign it to the feature for which the geometry has changed
-            #  - switch the geometries arround so that the original feature has the original geometry
-            #    and the new feature has the new geometry
-            #  - add the details to RestrictionsInProposal
+        == 1
+    )
+    if not restrictionFound:
+        #  This one is not in the current Proposal, so now we need to:
+        #  - generate a new ID and assign it to the feature for which the geometry has changed
+        #  - switch the geometries arround so that the original feature has the original geometry
+        #    and the new feature has the new geometry
+        #  - add the details to RestrictionsInProposal
 
-            # Create a copy of the feature
-            newFeature = QgsFeature(origLayer.fields())
-            newFeature.setAttributes(currRestriction.attributes())
-            newFeature.setGeometry(currRestriction.geometry())
-            newRestrictionID = str(uuid.uuid4())
-            newFeature["RestrictionID"] = newRestrictionID
-            newFeature["OpenDate"] = None
-            newFeature["GeometryID"] = None
-            if not origLayer.addFeature(newFeature):
+        # Create a copy of the feature
+        newFeature = QgsFeature(origLayer.fields())
+        newFeature.setAttributes(currRestriction.attributes())
+        newFeature.setGeometry(currRestriction.geometry())
+        newRestrictionID = str(uuid.uuid4())
+        newFeature["RestrictionID"] = newRestrictionID
+        newFeature["OpenDate"] = None
+        newFeature["GeometryID"] = None
+        if not origLayer.addFeature(newFeature):
+            raise Exception("Unable to add feature")
+
+        unmodifiedLayer = QgsVectorLayer(origLayer.source(), "", "postgres")
+        originalGeometry = list(
+            unmodifiedLayer.getFeatures(
+                f'"RestrictionID" = \'{currRestriction["RestrictionID"]}\''
+            )
+        )[0].geometry()
+        origLayer.changeGeometry(featId, originalGeometry)
+
+        for action, restrictionId in [
+            (RestrictionAction.CLOSE, currRestriction["RestrictionID"]),
+            (RestrictionAction.OPEN, newRestrictionID),
+        ]:
+            newRestrictionInProposal = QgsFeature(restrictionsInProposalsLayer.fields())
+            newRestrictionInProposal.setGeometry(QgsGeometry())
+            newRestrictionInProposal["ProposalID"] = currentProposal
+            newRestrictionInProposal["RestrictionID"] = restrictionId
+            newRestrictionInProposal["RestrictionTableID"] = currRestrictionLayerID
+            newRestrictionInProposal["ActionOnProposalAcceptance"] = action.value
+            if not restrictionsInProposalsLayer.addFeature(newRestrictionInProposal):
                 raise Exception("Unable to add feature")
 
-            unmodified_layer = QgsVectorLayer(origLayer.source(), "", "postgres")
-            original_geometry = list(
-                unmodified_layer.getFeatures(
-                    f'"RestrictionID" = \'{currRestriction["RestrictionID"]}\''
-                )
-            )[0].geometry()
-            origLayer.changeGeometry(featId, original_geometry)
-
-            for action, restrictionId in [
-                (RestrictionAction.CLOSE, currRestriction["RestrictionID"]),
-                (RestrictionAction.OPEN, newRestrictionID),
-            ]:
-                newRestrictionInProposal = QgsFeature(
-                    restrictionsInProposalsLayer.fields()
-                )
-                newRestrictionInProposal.setGeometry(QgsGeometry())
-                newRestrictionInProposal["ProposalID"] = currentProposal
-                newRestrictionInProposal["RestrictionID"] = restrictionId
-                newRestrictionInProposal["RestrictionTableID"] = currRestrictionLayerID
-                newRestrictionInProposal["ActionOnProposalAcceptance"] = action.value
-                restrictionsInProposalsLayer.startEditing()
-                if not restrictionsInProposalsLayer.addFeature(
-                    newRestrictionInProposal
-                ):
-                    raise Exception("Unable to add feature")
-                if not restrictionsInProposalsLayer.commitChanges():
-                    raise Exception("Unable to commit changes")
-
-            #
-            # if there are label layers, update those so that new feature is available
-            layerDetails = TOMsLabelLayerNames(origLayer)
-            for labelLayerName in layerDetails.getCurrLabelLayerNames():
-                try:
-                    labelLayer = QgsProject.instance().mapLayersByName(labelLayerName)[
-                        0
-                    ]
-                    labelLayer.reload()
-                except IndexError:
-                    pass
-
-
-class TOMsSplitRestrictionTool(RestrictionTypeUtilsMixin, QgsMapToolCapture):
-    def __init__(self, proposalsManager):
-
-        TOMsMessageLog.logMessage(("In SplitRestrictionTool - init."), level=Qgis.Info)
-        RestrictionTypeUtilsMixin.__init__(self)
-
-        QgsMapToolCapture.__init__(
-            self,
-            iface.mapCanvas(),
-            iface.cadDockWidget(),
-            QgsMapToolCapture.CaptureNone,
-        )
-        self.restrictionTransaction = TOMsTransaction(proposalsManager)
-        self.proposalsManager = proposalsManager
-
-        TOMsMessageLog.logMessage(
-            (
-                "In TOMsSplitRestrictionTool - geometryType: "
-                + str(self.layer().geometryType())
-            ),
-            level=Qgis.Info,
-        )
-
-        self.setAdvancedDigitizingAllowed(True)
-        self.setAutoSnapEnabled(True)
-
-        TOMsMessageLog.logMessage(
-            ("In TOMsSplitRestrictionTool - mode set."), level=Qgis.Info
-        )
-
-        # Seems that this is important - or at least to create a point list that is used later to create Geometry
-        self.sketchPoints = self.points()
-
-    def activate(self):
-        # get details of the selected feature
-        self.selectedRestriction = self.layer().selectedFeatures()[0]
-        TOMsMessageLog.logMessage(
-            "In TOMsSplitRestrictionTool:initialising ... saving original feature + "
-            + self.selectedRestriction.attribute("GeometryID"),
-            level=Qgis.Info,
-        )
-
-        # store the current restriction
-        self.origFeature = OriginalFeature()
-
-        self.origFeature.setFeature(self.selectedRestriction)
-        self.origFeature.printFeature()
-        self.currPoint = None
-        self.result = None
-        self.nrPoints = None
-
-    def cadCanvasReleaseEvent(self, event):
-        QgsMapToolCapture.cadCanvasReleaseEvent(self, event)
-        TOMsMessageLog.logMessage(
-            ("In TOMsSplitRestrictionTool - cadCanvasReleaseEvent"), level=Qgis.Info
-        )
-
-        if event.button() == Qt.LeftButton:
-            if not self.isCapturing():
-                self.startCapturing()
-
-            self.currPoint = event.mapPoint()
-
-            # add point to rubber band
-            self.result = self.addVertex(self.currPoint)
-
-            TOMsMessageLog.logMessage(
-                "In TOMsSplitRestrictionTool - added pt: "
-                + str(self.size())
-                + " X: "
-                + str(self.currPoint.x())
-                + " Y: "
-                + str(self.currPoint.y()),
-                level=Qgis.Info,
-            )
-
-        elif event.button() == Qt.RightButton:
-            self.getPointsCaptured()
-
-    def getPointsCaptured(self):
-        # Check the number of points
-        self.nrPoints = self.size()
-        TOMsMessageLog.logMessage(
-            (
-                "In TOMsSplitRestrictionTool - getPointsCaptured; Stopping: "
-                + str(self.nrPoints)
-            ),
-            level=Qgis.Info,
-        )
-
-        self.sketchPoints = self.points()
-
-        for point in self.sketchPoints:
-            TOMsMessageLog.logMessage(
-                (
-                    "In SplitRestrictionTool - getPointsCaptured X:"
-                    + str(point.x())
-                    + " Y: "
-                    + str(point.y())
-                ),
-                level=Qgis.Info,
-            )
-
-        # stop capture activity
-        self.stopCapturing()
-
-        if self.nrPoints <= 0:
-            QMessageBox.information(
-                None, "Error", "No cutting line created", QMessageBox.Ok
-            )
-            return
-            # take points from the rubber band and create a geometry
-
-        self.doSplitFeature(self.selectedRestriction, self.sketchPoints)
-
-    def doSplitFeature(self, currRestriction, cutPointsList):
-
-        TOMsMessageLog.logMessage(
-            "In SplitRestrictionTool. doSplitFeature ...", level=Qgis.Info
-        )
-
-        # now split the restriction.
-        originalGeometry = currRestriction.geometry()  # this will be amended ...
-        (result, extraGeometriesList, _,) = originalGeometry.splitGeometry(
-            QgsGeometry.fromPolylineXY(cutPointsList).asPolyline(), True
-        )
-
-        if result != QgsGeometry.OperationResult.Success:
-            QMessageBox.information(
-                None,
-                "Error",
-                "Issue splitting feature. Status: " + str(result),
-                QMessageBox.Ok,
-            )
-            return
-
-        extraGeometriesList.append(originalGeometry)
-        # if split, need to get parts and deal with appropriately
-        for newGeometry in extraGeometriesList:
-            newRestriction = self.createNewSplitRestriction(
-                currRestriction, newGeometry
-            )
-            if newRestriction is None:
-                self.restrictionTransaction.rollBackTransactionGroup()
-                return
-
-        result = self.updateOriginalSplitRestriction(
-            currRestriction
-        )  # now deal with the original feature
-        if result is False:
-            self.restrictionTransaction.rollBackTransactionGroup()
-            return
-
-        self.restrictionTransaction.commitTransactionGroup()
-
-        self.layer().deselect(self.origFeature.getFeature().id())
-
-    def createNewSplitRestriction(self, currRestriction, newGeometry):
-
-        TOMsMessageLog.logMessage(
-            "In SplitRestrictionTool. addNewSplitfeature ... ", level=Qgis.Info
-        )
-
-        # Now remove "GeometryID", "Opendate" and give the restriction a new "RestrictionID"
-        # and add it to the proposal.
-        keyFields = [
-            "RestrictionID",
-            "GeometryID",
-            "OpenDate",
-            "CloseDate",
-        ]  # TODO: can we put this somewhere else
-        currFields = currRestriction.fields()
-        newRestriction = QgsFeature(currFields)
-
-        # set the attributes
-        for field in currFields:
-            if field.name() not in keyFields:
-                TOMsMessageLog.logMessage(
-                    "In SplitRestrictionTool. addNewSplitfeature ... field: {}".format(
-                        field.name()
-                    ),
-                    level=Qgis.Info,
-                )
-                try:
-                    result = newRestriction.setAttribute(
-                        field.name(), currRestriction.attribute(field.name())
-                    )
-                    if result is False:
-                        TOMsMessageLog.logMessage(
-                            "In SplitRestrictionTool:createNewSplitRestriction: problem setting value for {}".format(
-                                field
-                            ),
-                            level=Qgis.Warning,
-                        )
-                        return None
-                except Exception:
-                    _, _, excTraceback = sys.exc_info()
-                    QMessageBox.information(
-                        None,
-                        "Error",
-                        "SplitRestrictionTool:createNewSplitRestriction: "
-                        "Issue creating new feature after split. Status: "
-                        + str(repr(traceback.extract_tb(excTraceback))),
-                        QMessageBox.Ok,
-                    )
-                    return None
-
-        newRestrictionID = str(uuid.uuid4())
-        newRestriction.setAttribute(
-            "RestrictionID", newRestrictionID
-        )  # TODO: Understand why the trigger is not able to generate this !!!!!?????
-        # set the geometry
-        result = newRestriction.setGeometry(newGeometry)
-
-        result = self.layer().addFeature(newRestriction)
-        if result is False:
-            self.restrictionTransaction.rollBackTransactionGroup()
-            return None
-
-        self.addRestrictionToProposal(
-            newRestriction.attribute("RestrictionID"),
-            self.getRestrictionLayerTableID(self.layer()),
-            self.proposalsManager.currentProposal(),
-            RestrictionAction.OPEN,
-        )  # close the original feature
-
-        return newRestriction
-
-    def updateOriginalSplitRestriction(self, changedRestriction):
-
-        TOMsMessageLog.logMessage(
-            "In SplitRestrictionTool:updateOriginalSplitRestriction ... ",
-            level=Qgis.Info,
-        )
-
-        TOMsMessageLog.logMessage(
-            "In SplitRestrictionTool:updateOriginalSplitRestriction. currProposal: "
-            + str(self.proposalsManager.currentProposal()),
-            level=Qgis.Info,
-        )
-
-        # When a geometry is changed; we need to check whether or not the feature is part of the current proposal
-
-        if not self.restrictionInProposal(
-            changedRestriction.attribute("RestrictionID"),
-            self.getRestrictionLayerTableID(self.layer()),
-            self.proposalsManager.currentProposal(),
-        ):
-            TOMsMessageLog.logMessage(
-                "In SplitRestrictionTool:onGeometryChanged - adding details to RestrictionsInProposal",
-                level=Qgis.Info,
-            )
-            #  This one is not in the current Proposal, so now we need to:
-            #  - add the original details to RestrictionsInProposal
-
-            result = self.addRestrictionToProposal(
-                changedRestriction.attribute("RestrictionID"),
-                self.getRestrictionLayerTableID(self.layer()),
-                self.proposalsManager.currentProposal(),
-                RestrictionAction.CLOSE,
-            )  # close the original feature
-            TOMsMessageLog.logMessage(
-                "In SplitRestrictionTool:onGeometryChanged - orignal feature CLOSED. {}".format(
-                    changedRestriction.attribute("RestrictionID")
-                ),
-                level=Qgis.Info,
-            )
-
-        else:
-            result = self.deleteRestrictionInProposal(
-                changedRestriction.attribute("RestrictionID"),
-                self.getRestrictionLayerTableID(self.layer()),
-                self.proposalsManager.currentProposal(),
-            )
-
-            TOMsMessageLog.logMessage(
-                "In SplitRestrictionTool:onGeometryChanged - changed feature already "
-                "in RestrictionsInProposal. Now removed {}".format(
-                    changedRestriction.attribute("RestrictionID")
-                ),
-                level=Qgis.Info,
-            )
-
-        return result
-
-    def keyPressEvent(self, event):
-        if (
-            (event.key() == Qt.Key_Backspace)
-            or (event.key() == Qt.Key_Delete)
-            or (event.key() == Qt.Key_Escape)
-        ):
-            self.undo()
+        # If there are label layers, update those so that new feature is available
+        layerDetails = TOMsLabelLayerNames(origLayer)
+        for labelLayerName in layerDetails.getCurrLabelLayerNames():
+            try:
+                labelLayer = QgsProject.instance().mapLayersByName(labelLayerName)[0]
+                labelLayer.reload()
+            except IndexError:
+                pass

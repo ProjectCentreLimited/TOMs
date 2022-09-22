@@ -24,15 +24,11 @@ class TOMs:
 
     def __init__(self):
 
-        QgsMessageLog.logMessage(
-            "Starting TOMs... ", tag="TOMs Panel", level=Qgis.Warning
-        )
+        QgsMessageLog.logMessage("Starting TOMs... ", tag="TOMs Panel")
 
         TOMsMessageLog.setLogFile()
 
-        TOMsMessageLog.logMessage(
-            "Registering expression functions ... ", level=Qgis.Info
-        )
+        TOMsMessageLog.logMessage("Registering expression functions ... ")
         self.expressionsObject = TOMsExpressions()
         self.expressionsObject.registerFunctions()  # Register the Expression functions that we need
 
@@ -40,7 +36,7 @@ class TOMs:
         self.tomsToolbar = None
         self.doProposalsPanel = None
 
-        TOMsMessageLog.logMessage("Finished init ...", level=Qgis.Warning)
+        TOMsMessageLog.logMessage("Finished init ...")
 
     def initGui(self) -> None:
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
@@ -55,4 +51,4 @@ class TOMs:
         self.expressionsObject.unregisterFunctions()  # unregister all the Expression functions used
 
         # TODO: Check whether or not there are any current map tools
-        TOMsMessageLog.logMessage("Unload comnpleted ... ", level=Qgis.Info)
+        TOMsMessageLog.logMessage("Unload completed ... ", level=Qgis.Info)

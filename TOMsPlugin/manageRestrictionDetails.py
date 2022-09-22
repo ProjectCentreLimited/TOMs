@@ -10,7 +10,7 @@
 # Oslandia 2022
 
 from qgis.core import Qgis, QgsProject
-from qgis.gui import QgsFeatureListComboBox, QgsMapToolPan
+from qgis.gui import QgsFeatureListComboBox, QgsMapToolAdvancedDigitizing, QgsMapToolPan
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
@@ -25,8 +25,8 @@ from .importRestrictions.tomsImportRestrictionsDialog import (
 from .mapTools import (
     CreateRestrictionTool,
     GeometryInfoMapTool,
-    TOMsSplitRestrictionTool,
     checkEditedGeometries,
+    checkSplitGeometries,
 )
 
 # Initialize Qt resources from file resources.py
@@ -149,7 +149,7 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
         )
         self.actionRemoveRestriction.triggered.connect(self.doRemoveRestriction)
         self.actionEditRestriction.toggled.connect(self.doEditRestriction)
-        self.actionSplitRestriction.triggered.connect(self.doSplitRestriction)
+        self.actionSplitRestriction.toggled.connect(self.doSplitRestriction)
         self.actionCreateConstructionLine.triggered.connect(
             lambda: self.doCreateRestriction(self.actionCreateConstructionLine)
         )
@@ -511,6 +511,7 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
                 )
                 self.restrictionTransaction.startTransactionGroup()
                 iface.actionVertexToolActiveLayer().trigger()
+                self.mapTool = iface.mapCanvas().mapTool()
                 iface.actionVertexToolActiveLayer().toggled.connect(
                     lambda: self.actionEditRestriction.setChecked(False)
                 )
@@ -531,12 +532,11 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
                 iface.actionVertexToolActiveLayer().toggled.disconnect()
             except TypeError:
                 pass
-            if iface.mapCanvas().mapTool() is None:
+            if iface.mapCanvas().mapTool() is self.mapTool:
                 iface.actionPan().trigger()
 
             if self.restrictionTransaction.currTransactionGroup.modified():
                 checkEditedGeometries(self.proposalsManager.currentProposal())
-                self.proposalsManager.updateMapCanvas()
             self.restrictionTransaction.commitTransactionGroup()  # to remove edit mode
 
             TOMsMessageLog.logMessage(
@@ -549,64 +549,50 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
 
         TOMsMessageLog.logMessage("In doSplitRestriction - starting", level=Qgis.Info)
 
-        commitStatus = self.restrictionTransaction.rollBackTransactionGroup()
-        TOMsMessageLog.logMessage(
-            "In doSplitRestriction. Current transaction rolled back ... {}".format(
-                commitStatus
-            ),
-            level=Qgis.Warning,
-        )
+        currRestrictionLayer = iface.activeLayer()
+        if self.restrictionTransaction.currTransactionGroup.modified():
+            if (
+                QMessageBox.question(
+                    iface.mainWindow(),
+                    "Editing in progress",
+                    "Do you want to save the changes?",
+                )
+                == QMessageBox.No
+            ):
+                self.restrictionTransaction.rollBackTransactionGroup()
 
-        del self.mapTool
-        self.mapTool = None
-
-        # Get the current proposal from the session variables
-        currProposalID = self.proposalsManager.currentProposal()
-
-        if currProposalID > 0:
-
+        if self.actionSplitRestriction.isChecked():
             TOMsMessageLog.logMessage(
-                "In doSplitRestriction - tool being activated", level=Qgis.Info
+                "In actionSplitRestriction - tool being activated", level=Qgis.Info
             )
 
-            # Need to clear any other maptools ....   ********
+            # Get the current proposal from the session variables
+            if self.proposalsManager.currentProposal() <= 0:
+                QMessageBox.information(
+                    iface.mainWindow(),
+                    "Information",
+                    "Changes to current data are not allowed. Changes are made via Proposals",
+                    QMessageBox.Ok,
+                )
+                self.actionSplitRestriction.setChecked(False)
+                return
 
-            currRestrictionLayer = iface.activeLayer()
-
-            if currRestrictionLayer:
-
+            if currRestrictionLayer and currRestrictionLayer.selectedFeatureCount() > 0:
                 TOMsMessageLog.logMessage(
                     "In doSplitRestriction. currLayer: "
                     + str(currRestrictionLayer.name()),
                     level=Qgis.Info,
                 )
-
-                if currRestrictionLayer.selectedFeatureCount() > 0:
-
-                    self.restrictionTransaction.startTransactionGroup()
-
-                    # self.actionEditRestriction.setChecked(True)
-                    self.mapTool = TOMsSplitRestrictionTool(
-                        self.proposalsManager,
-                    )
-                    self.mapTool.setAction(self.actionSplitRestriction)
-                    iface.mapCanvas().setMapTool(self.mapTool)
-
-                else:
-
-                    QMessageBox.information(
-                        iface.mainWindow(),
-                        "Information",
-                        "Select restriction for edit",
-                        QMessageBox.Ok,
-                    )
-
-                    self.actionSplitRestriction.setChecked(False)
-                    del self.mapTool
-                    self.mapTool = None
+                self.restrictionTransaction.startTransactionGroup()
+                iface.actionSplitFeatures().trigger()
+                self.mapTool = iface.mapCanvas().mapTool()
+                iface.actionSplitFeatures().toggled.connect(
+                    lambda: self.actionSplitRestriction.setChecked(False)
+                )
+                self.setupPanelTabs(iface.cadDockWidget())
+                iface.cadDockWidget().enable()
 
             else:
-
                 QMessageBox.information(
                     iface.mainWindow(),
                     "Information",
@@ -614,20 +600,22 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
                     QMessageBox.Ok,
                 )
                 self.actionSplitRestriction.setChecked(False)
-                del self.mapTool
-                self.mapTool = None
 
         else:
+            try:
+                iface.actionSplitFeatures().toggled.disconnect()
+            except TypeError:
+                pass
+            if iface.mapCanvas().mapTool() is self.mapTool:
+                iface.actionPan().trigger()
 
-            QMessageBox.information(
-                iface.mainWindow(),
-                "Information",
-                "Changes to current data are not allowed. Changes are made via Proposals",
-                QMessageBox.Ok,
+            if self.restrictionTransaction.currTransactionGroup.modified():
+                checkSplitGeometries(self.proposalsManager.currentProposal())
+            self.restrictionTransaction.commitTransactionGroup()  # to remove edit mode
+
+            TOMsMessageLog.logMessage(
+                "In doSplitRestriction - tool deactivated", level=Qgis.Info
             )
-            self.actionSplitRestriction.setChecked(False)
-            del self.mapTool
-            self.mapTool = None
 
         TOMsMessageLog.logMessage("In doSplitRestriction - leaving", level=Qgis.Info)
 

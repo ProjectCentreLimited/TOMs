@@ -9,7 +9,6 @@
 # Tim Hancock/Matthias Kuhn 2017
 # Oslandia 2022
 
-import logging
 import math
 import os.path
 from cmath import phase, rect
@@ -65,7 +64,7 @@ class GenerateGeometryUtils(QObject):
         function to determine direction of turn to road centre    *** needs to be checked carefully ***
         Az1 = Az of current line; Az2 = Az to roadCentreline
         """
-        # TOMsMessageLog.logMessage("In turnToCL Az1 = " + str(Az1) + " Az2 = " + str(Az2), level=logging.DEBUG)
+        # TOMsMessageLog.logMessage("In turnToCL Az1 = " + str(Az1) + " Az2 = " + str(Az2), level=TOMsMessageLog.DEBUG)
 
         azCL = az1 - 90.0
         if azCL < 0:
@@ -123,7 +122,7 @@ class GenerateGeometryUtils(QObject):
         diffAngle = diffAz2 / float(2)
         bisectAz = GenerateGeometryUtils.checkDegrees(az1 - diffAngle)
 
-        # TOMsMessageLog.logMessage("In generateDisplayGeometry: bisectAz: " + str(bisectAz), level=logging.DEBUG)
+        # TOMsMessageLog.logMessage("In generateDisplayGeometry: bisectAz: " + str(bisectAz), level=TOMsMessageLog.DEBUG)
 
         return bisectAz
 
@@ -135,11 +134,11 @@ class GenerateGeometryUtils(QObject):
             newAz = Az - float(360)
         elif Az < float(0):
             newAz = Az + float(360)
-        TOMsMessageLog.logMessage("In checkDegrees (1): newAz: " + str(newAz), level=logging.DEBUG)"""
+        TOMsMessageLog.logMessage("In checkDegrees (1): newAz: " + str(newAz), level=TOMsMessageLog.DEBUG)"""
 
         newAz = math.degrees(QgsGeometryUtils().normalizedAngle(math.radians(azim)))
 
-        # TOMsMessageLog.logMessage("In checkDegrees (2): newAz: " + str(newAz), level=logging.DEBUG)
+        # TOMsMessageLog.logMessage("In checkDegrees (2): newAz: " + str(newAz), level=TOMsMessageLog.DEBUG)
 
         return newAz
 
@@ -161,14 +160,16 @@ class GenerateGeometryUtils(QObject):
     @staticmethod
     def determineRoadName(feature):
 
-        TOMsMessageLog.logMessage("In determineRoadName(helper):", level=logging.DEBUG)
+        TOMsMessageLog.logMessage(
+            "In determineRoadName(helper):", level=TOMsMessageLog.DEBUG
+        )
 
         roadCasementLayer = QgsProject.instance().mapLayersByName("RoadCasement")[0]
 
         # take the first point from the geometry
         TOMsMessageLog.logMessage(
             "In determineRoadName: {}".format(feature.geometry().asWkt()),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         geom = feature.geometry()
@@ -181,13 +182,13 @@ class GenerateGeometryUtils(QObject):
             "In determineRoadName: GeometryID: {}".format(
                 feature.attribute("GeometryID")
             ),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
         if geom:
             if geom.type() == QgsWkbTypes.LineGeometry:
                 TOMsMessageLog.logMessage(
                     "In determineRoadName(helper): considering line",
-                    level=logging.DEBUG,
+                    level=TOMsMessageLog.DEBUG,
                 )
                 line = GenerateGeometryUtils.getLineForAz(feature)
 
@@ -202,13 +203,13 @@ class GenerateGeometryUtils(QObject):
                     "In determineRoadName: GeometryID: {}. Length: {}. {}".format(
                         feature.attribute("GeometryID"), length, length / 2.0
                     ),
-                    level=logging.DEBUG,
+                    level=TOMsMessageLog.DEBUG,
                 )
 
             elif geom.type() == QgsWkbTypes.PointGeometry:  # Point
                 TOMsMessageLog.logMessage(
                     "In determineRoadName(helper): considering point",
-                    level=logging.DEBUG,
+                    level=TOMsMessageLog.DEBUG,
                 )
                 testPt = feature.geometry().asPoint()
 
@@ -217,7 +218,7 @@ class GenerateGeometryUtils(QObject):
             elif feature.geometry().type() == QgsWkbTypes.PolygonGeometry:  # Polygon
                 TOMsMessageLog.logMessage(
                     "In determineRoadName(helper): considering polygon",
-                    level=logging.DEBUG,
+                    level=TOMsMessageLog.DEBUG,
                 )
                 ptList = feature.geometry().asPolygon()[0]
                 testPt = ptList[
@@ -231,13 +232,13 @@ class GenerateGeometryUtils(QObject):
             return None, None
 
         # nrPts = len(ptList)
-        # TOMsMessageLog.logMessage("In determineRoadName: number of pts in list: " + str(nrPts), level=logging.DEBUG)
+        # TOMsMessageLog.logMessage("In determineRoadName: number of pts in list: " + str(nrPts), level=TOMsMessageLog.DEBUG)
 
         TOMsMessageLog.logMessage(
             "In determineRoadName: GeometryID: {}; testPt: {}:{}".format(
                 feature.attribute("GeometryID"), testPt.x(), testPt.y()
             ),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         # check for the feature within RoadCasement_NSG_RoadName layer
@@ -319,7 +320,7 @@ class GenerateGeometryUtils(QObject):
         # generates "closest feature" function
 
         TOMsMessageLog.logMessage(
-            "In calculateAzimuthToRoadCentreLine(helper):", level=logging.DEBUG
+            "In calculateAzimuthToRoadCentreLine(helper):", level=TOMsMessageLog.DEBUG
         )
 
         roadCentreLineLayer = QgsProject.instance().mapLayersByName("RoadCentreLine")[0]
@@ -365,7 +366,7 @@ class GenerateGeometryUtils(QObject):
         TOMsMessageLog.logMessage(
             "In calculateAzimuthToRoadCentreLine: shortestDistance: "
             + str(shortestDistance),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         if featureFound:
@@ -380,7 +381,7 @@ class GenerateGeometryUtils(QObject):
 
             TOMsMessageLog.logMessage(
                 "In calculateAzimuthToRoadCentreLine: startPoint: " + str(startPt.x()),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
 
             azim = GenerateGeometryUtils.checkDegrees(QgsPoint(testPt).azimuth(startPt))
@@ -472,7 +473,7 @@ class GenerateGeometryUtils(QObject):
                 if restGeomType in [5, 25]:  # echelon
                     TOMsMessageLog.logMessage(
                         "In getDisplayGeometry: orientation: " + str(orientation),
-                        level=logging.DEBUG,
+                        level=TOMsMessageLog.DEBUG,
                     )
                     diffEchelonAz = GenerateGeometryUtils.checkDegrees(
                         orientation - newAz
@@ -483,7 +484,7 @@ class GenerateGeometryUtils(QObject):
                         + str(newAz)
                         + " diffEchelonAz: "
                         + str(diffEchelonAz),
-                        level=logging.DEBUG,
+                        level=TOMsMessageLog.DEBUG,
                     )
                     cosa, cosb = GenerateGeometryUtils.cosdirAzim(newAz)
 
@@ -526,7 +527,7 @@ class GenerateGeometryUtils(QObject):
 
         # standard bay
         newAz = azim + turn + diffEchelonAz
-        # TOMsMessageLog.logMessage("In generateDisplayGeometry: newAz: " + str(newAz), level=logging.DEBUG)
+        # TOMsMessageLog.logMessage("In generateDisplayGeometry: newAz: " + str(newAz), level=TOMsMessageLog.DEBUG)
         cosa, cosb = GenerateGeometryUtils.cosdirAzim(newAz)
 
         ptsList.append(
@@ -589,7 +590,7 @@ class GenerateGeometryUtils(QObject):
     @staticmethod
     def generateBayLabelLeader(feature):
 
-        # TOMsMessageLog.logMessage("In generateBayLabelLeader", level=logging.DEBUG)
+        # TOMsMessageLog.logMessage("In generateBayLabelLeader", level=TOMsMessageLog.DEBUG)
         # check to see scale
 
         minScale = float(GenerateGeometryUtils.getMininumScaleForDisplay())
@@ -600,7 +601,7 @@ class GenerateGeometryUtils(QObject):
             + str(currScale)
             + " min scale: "
             + str(minScale),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         if currScale <= minScale:
@@ -611,7 +612,7 @@ class GenerateGeometryUtils(QObject):
                 TOMsMessageLog.logMessage(
                     "In generateBayLabelLeader. label_X set for "
                     + str(feature.attribute("GeometryID")),
-                    level=logging.DEBUG,
+                    level=TOMsMessageLog.DEBUG,
                 )
 
                 return QgsGeometry.fromPolyline(
@@ -630,7 +631,7 @@ class GenerateGeometryUtils(QObject):
     @staticmethod
     def generatePolygonLabelLeader(feature):
 
-        # TOMsMessageLog.logMessage("In generateBayLabelLeader", level=logging.DEBUG)
+        # TOMsMessageLog.logMessage("In generateBayLabelLeader", level=TOMsMessageLog.DEBUG)
         # check to see scale
 
         minScale = float(GenerateGeometryUtils.getMininumScaleForDisplay())
@@ -642,7 +643,7 @@ class GenerateGeometryUtils(QObject):
                 TOMsMessageLog.logMessage(
                     "In generatePolygonLabelLeader. label_X set for "
                     + str(feature.attribute("GeometryID")),
-                    level=logging.DEBUG,
+                    level=TOMsMessageLog.DEBUG,
                 )
 
                 # now generate line
@@ -666,7 +667,7 @@ class GenerateGeometryUtils(QObject):
 
         TOMsMessageLog.logMessage(
             "In getMininumScaleForDisplay. minScale(1): " + str(minScale),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         if minScale is None:
@@ -678,7 +679,7 @@ class GenerateGeometryUtils(QObject):
     def getWaitingLoadingRestrictionLabelText(feature):
 
         TOMsMessageLog.logMessage(
-            "In getWaitingLoadingRestrictionLabelText", level=logging.DEBUG
+            "In getWaitingLoadingRestrictionLabelText", level=TOMsMessageLog.DEBUG
         )
 
         minScale = float(GenerateGeometryUtils.getMininumScaleForDisplay())
@@ -689,7 +690,7 @@ class GenerateGeometryUtils(QObject):
 
         TOMsMessageLog.logMessage(
             "In getWaitingLoadingRestrictionLabelText(1): get details ...",
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         try:
@@ -705,7 +706,7 @@ class GenerateGeometryUtils(QObject):
             "In getWaitingLoadingRestrictionLabelText(1): details found ... [{}]".format(
                 geometryID
             ),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         timePeriodsLayer = QgsProject.instance().mapLayersByName(
@@ -716,7 +717,7 @@ class GenerateGeometryUtils(QObject):
             "In getWaitingLoadingRestrictionLabelText(1): getting lookup values ... [{}]".format(
                 geometryID
             ),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         waitDesc = GenerateGeometryUtils.getLookupLabelText(
@@ -731,7 +732,7 @@ class GenerateGeometryUtils(QObject):
             + str(waitDesc)
             + " loading: "
             + str(loadDesc),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         restrictionCPZ = feature.attribute("CPZ")
@@ -746,7 +747,7 @@ class GenerateGeometryUtils(QObject):
                 loadingTimeID,
                 matchDayTimePeriodID,
             ),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         if cpzWaitingTimeID:
@@ -761,7 +762,7 @@ class GenerateGeometryUtils(QObject):
                 "In getWaitingLoadingRestrictionLabelText: ED: {}; restriction: {}".format(
                     cpzMatchDayTimePeriodID, matchDayTimePeriodID
                 ),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
             if cpzMatchDayTimePeriodID != matchDayTimePeriodID:
                 matchDayTimePeriodDesc = GenerateGeometryUtils.getLookupLabelText(
@@ -790,7 +791,7 @@ class GenerateGeometryUtils(QObject):
             "In getWaitingLoadingRestrictionLabelText({}); waiting: {}; loading: {}".format(
                 geometryID, waitDesc, loadDesc
             ),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
         return waitDesc, loadDesc
 
@@ -798,7 +799,7 @@ class GenerateGeometryUtils(QObject):
     def getBayRestrictionLabelText(feature):
 
         TOMsMessageLog.logMessage(
-            "In getBayRestrictionLabelText ..", level=logging.DEBUG
+            "In getBayRestrictionLabelText ..", level=TOMsMessageLog.DEBUG
         )
 
         minScale = float(GenerateGeometryUtils.getMininumScaleForDisplay())
@@ -823,7 +824,7 @@ class GenerateGeometryUtils(QObject):
             TOMsMessageLog.logMessage(
                 "In getBayRestrictionLabelText: GeometryID: "
                 + feature.attribute("GeometryID"),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
 
         maxStayDesc = GenerateGeometryUtils.getLookupLabelText(
@@ -837,7 +838,7 @@ class GenerateGeometryUtils(QObject):
         )
 
         TOMsMessageLog.logMessage(
-            "In getBayRestrictionLabelText (2) ..", level=logging.DEBUG
+            "In getBayRestrictionLabelText (2) ..", level=TOMsMessageLog.DEBUG
         )
 
         restrictionCPZ = feature.attribute("CPZ")
@@ -856,11 +857,11 @@ class GenerateGeometryUtils(QObject):
             + str(cpzWaitingTimeID)
             + " PTA hours: "
             + str(tariffZoneTimePeriodID),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
         TOMsMessageLog.logMessage(
             "In getBayRestrictionLabelText. bay hours: " + str(timePeriodID),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         if timePeriodID == 1:  # 'At Any Time'
@@ -872,7 +873,7 @@ class GenerateGeometryUtils(QObject):
                 + str(cpzWaitingTimeID)
                 + " "
                 + str(timePeriodID),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
             if cpzWaitingTimeID == timePeriodID:
                 timePeriodDesc = None
@@ -897,7 +898,7 @@ class GenerateGeometryUtils(QObject):
                 "In getBayRestrictionLabelText: ED: {}; restriction: {}".format(
                     cpzMatchDayTimePeriodID, matchDayTimePeriodID
                 ),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
             if cpzMatchDayTimePeriodID != matchDayTimePeriodID:
                 matchDayTimePeriodDesc = GenerateGeometryUtils.getLookupLabelText(
@@ -930,7 +931,7 @@ class GenerateGeometryUtils(QObject):
 
         TOMsMessageLog.logMessage(
             "In getBayRestrictionLabelText. timePeriodDesc (2): " + str(timePeriodDesc),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         return maxStayDesc, noReturnDesc, timePeriodDesc
@@ -938,13 +939,13 @@ class GenerateGeometryUtils(QObject):
     @staticmethod
     def getLookupDescription(lookupLayer, code):
 
-        # TOMsMessageLog.logMessage("In getLookupDescription", level=logging.DEBUG)
+        # TOMsMessageLog.logMessage("In getLookupDescription", level=TOMsMessageLog.DEBUG)
 
         if code:
             query = '"Code" = ' + str(code)
             request = QgsFeatureRequest().setFilterExpression(query)
 
-            # TOMsMessageLog.logMessage("In getLookupDescription. queryStatus: " + str(query), level=logging.DEBUG)
+            # TOMsMessageLog.logMessage("In getLookupDescription. queryStatus: " + str(query), level=TOMsMessageLog.DEBUG)
 
             for row in lookupLayer.getFeatures(request):
                 return row.attribute("Description")  # make assumption that only one row
@@ -954,7 +955,7 @@ class GenerateGeometryUtils(QObject):
     @staticmethod
     def getLookupLabelText(lookupLayer, code):
 
-        # TOMsMessageLog.logMessage("In getLookupLabelText", level=logging.DEBUG)
+        # TOMsMessageLog.logMessage("In getLookupLabelText", level=TOMsMessageLog.DEBUG)
 
         if code:
             query = '"Code" = ' + str(code)
@@ -969,14 +970,14 @@ class GenerateGeometryUtils(QObject):
                     level=Qgis.Warning,
                 )
 
-        # TOMsMessageLog.logMessage("In getLookupLabelText. returning without value ...", level=logging.DEBUG)
+        # TOMsMessageLog.logMessage("In getLookupLabelText. returning without value ...", level=TOMsMessageLog.DEBUG)
 
         return None
 
     @staticmethod
     def getCurrentCPZDetails(feature):
 
-        TOMsMessageLog.logMessage("In getCurrentCPZDetails", level=logging.DEBUG)
+        TOMsMessageLog.logMessage("In getCurrentCPZDetails", level=TOMsMessageLog.DEBUG)
         try:
             cpzLayer = QgsProject.instance().mapLayersByName("CPZs")[0]
         except Exception:
@@ -986,7 +987,7 @@ class GenerateGeometryUtils(QObject):
             restrictionID = feature.attribute("GeometryID")
             TOMsMessageLog.logMessage(
                 "In getCurrentCPZDetails. restriction: " + str(restrictionID),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
 
             # geom = feature.geometry()
@@ -1004,7 +1005,7 @@ class GenerateGeometryUtils(QObject):
                     "In getCurrentCPZDetails. CPZ found: {}: control: {}".format(
                         currentCPZ, cpzWaitingTimeID
                     ),
-                    level=logging.DEBUG,
+                    level=TOMsMessageLog.DEBUG,
                 )
 
                 return currentCPZ, cpzWaitingTimeID
@@ -1014,7 +1015,9 @@ class GenerateGeometryUtils(QObject):
     @staticmethod
     def getCurrentEventDayDetails(feature):
 
-        TOMsMessageLog.logMessage("In getCurrentEventDayDetails", level=logging.DEBUG)
+        TOMsMessageLog.logMessage(
+            "In getCurrentEventDayDetails", level=TOMsMessageLog.DEBUG
+        )
         try:
             edLayer = QgsProject.instance().mapLayersByName("MatchDayEventDayZones")[0]
         except Exception:
@@ -1024,7 +1027,7 @@ class GenerateGeometryUtils(QObject):
             restrictionID = feature.attribute("GeometryID")
             TOMsMessageLog.logMessage(
                 "In getCurrentEventDayDetails. restriction: " + str(restrictionID),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
 
             # geom = feature.geometry()
@@ -1042,7 +1045,7 @@ class GenerateGeometryUtils(QObject):
                     "In getCurrentEventDayDetails. CPZ found: {}: control: {}".format(
                         currentEDZ, edzWaitingTimeID
                     ),
-                    level=logging.DEBUG,
+                    level=TOMsMessageLog.DEBUG,
                 )
 
                 return currentEDZ, edzWaitingTimeID
@@ -1052,7 +1055,7 @@ class GenerateGeometryUtils(QObject):
     @staticmethod
     def getCurrentPTADetails(feature):
 
-        TOMsMessageLog.logMessage("In getCurrentPTADetails", level=logging.DEBUG)
+        TOMsMessageLog.logMessage("In getCurrentPTADetails", level=TOMsMessageLog.DEBUG)
         try:
             ptaLayer = QgsProject.instance().mapLayersByName("ParkingTariffAreas")[0]
         except Exception:
@@ -1062,7 +1065,7 @@ class GenerateGeometryUtils(QObject):
             restrictionID = feature.attribute("GeometryID")
             TOMsMessageLog.logMessage(
                 "In getCurrentPTADetails. restriction: " + str(restrictionID),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
 
             # geom = feature.geometry()
@@ -1076,7 +1079,7 @@ class GenerateGeometryUtils(QObject):
                 ptaMaxStayID = currentPTAFeature.attribute("MaxStayID")
                 ptaNoReturnID = currentPTAFeature.attribute("NoReturnID")
 
-                # TOMsMessageLog.logMessage("In getCurrentPTADetails. PTA found: " + str(currentPTA), level=logging.DEBUG)
+                # TOMsMessageLog.logMessage("In getCurrentPTADetails. PTA found: " + str(currentPTA), level=TOMsMessageLog.DEBUG)
 
                 return currentPTA, ptaMaxStayID, ptaNoReturnID
 
@@ -1094,7 +1097,7 @@ class GenerateGeometryUtils(QObject):
             If no feature is close to the given coordinate, we return None.
         """
 
-        # TOMsMessageLog.logMessage("In getPolygonForRestriction.", level=logging.DEBUG)
+        # TOMsMessageLog.logMessage("In getPolygonForRestriction.", level=TOMsMessageLog.DEBUG)
 
         line = GenerateGeometryUtils.getLineForAz(restriction)
 
@@ -1105,11 +1108,11 @@ class GenerateGeometryUtils(QObject):
             testPt = line[
                 0
             ]  # choose second point to (try to) move away from any "ends" (may be best to get midPoint ...)
-            # TOMsMessageLog.logMessage("In getPolygonForRestriction." + str(testPt.x()), level=logging.DEBUG)
+            # TOMsMessageLog.logMessage("In getPolygonForRestriction." + str(testPt.x()), level=TOMsMessageLog.DEBUG)
 
             for poly in layer.getFeatures():
                 if poly.geometry().contains(QgsGeometry.fromPointXY(testPt)):
-                    # TOMsMessageLog.logMessage("In getPolygonForRestriction. feature found", level=logging.DEBUG)
+                    # TOMsMessageLog.logMessage("In getPolygonForRestriction. feature found", level=TOMsMessageLog.DEBUG)
                     return poly
 
         return None
@@ -1128,7 +1131,7 @@ class GenerateGeometryUtils(QObject):
                         row[layer.fields().indexFromName(attributeName)],
                         layer.name(),
                     ),
-                    level=logging.DEBUG,
+                    level=TOMsMessageLog.DEBUG,
                 )
                 return row[
                     layer.fields().indexFromName(attributeName)
@@ -1142,7 +1145,8 @@ class GenerateGeometryUtils(QObject):
     def getCPZWaitingTimeID(cpzNr):
 
         TOMsMessageLog.logMessage(
-            "In getCPZWaitingTimeID. Looking for {}.".format(cpzNr), level=logging.DEBUG
+            "In getCPZWaitingTimeID. Looking for {}.".format(cpzNr),
+            level=TOMsMessageLog.DEBUG,
         )
 
         try:
@@ -1158,7 +1162,7 @@ class GenerateGeometryUtils(QObject):
                 "In getCPZWaitingTimeID. table: {}; query: {}".format(
                     cpzLayer.name(), str(query)
                 ),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
 
             try:
@@ -1167,7 +1171,7 @@ class GenerateGeometryUtils(QObject):
                 return None
 
             TOMsMessageLog.logMessage(
-                "In getCPZWaitingTimeID. Found CPZ.", level=logging.DEBUG
+                "In getCPZWaitingTimeID. Found CPZ.", level=TOMsMessageLog.DEBUG
             )
 
             return row["TimePeriodID"]
@@ -1177,7 +1181,7 @@ class GenerateGeometryUtils(QObject):
     @staticmethod
     def getEDWaitingTimeID(edzNr):
 
-        TOMsMessageLog.logMessage("In getEDWaitingTimeID", level=logging.DEBUG)
+        TOMsMessageLog.logMessage("In getEDWaitingTimeID", level=TOMsMessageLog.DEBUG)
 
         try:
             edzLayer = QgsProject.instance().mapLayersByName("MatchDayEventDayZones")[0]
@@ -1190,14 +1194,14 @@ class GenerateGeometryUtils(QObject):
 
                 if currentEDZ == edzNr:
                     TOMsMessageLog.logMessage(
-                        "In getEDWaitingTimeID. Found EDZ.", level=logging.DEBUG
+                        "In getEDWaitingTimeID. Found EDZ.", level=TOMsMessageLog.DEBUG
                     )
                     edzWaitingTimeID = poly.attribute("TimePeriodID")
                     # cpzMatchDayTimeID = poly.attribute("MatchDayTimePeriodID")
                     # return cpzWaitingTimeID, cpzMatchDayTimeID
                     TOMsMessageLog.logMessage(
                         "In getEDWaitingTimeID. ID. {}".format(edzWaitingTimeID),
-                        level=logging.DEBUG,
+                        level=TOMsMessageLog.DEBUG,
                     )
                     return edzWaitingTimeID
 
@@ -1206,7 +1210,7 @@ class GenerateGeometryUtils(QObject):
     @staticmethod
     def getTariffZoneDetails(tpaNr):
 
-        TOMsMessageLog.logMessage("In getTariffZoneDetails", level=logging.DEBUG)
+        TOMsMessageLog.logMessage("In getTariffZoneDetails", level=TOMsMessageLog.DEBUG)
 
         try:
             tpaLayer = QgsProject.instance().mapLayersByName("ParkingTariffAreas")[0]
@@ -1219,14 +1223,15 @@ class GenerateGeometryUtils(QObject):
 
                 if currentPTA == tpaNr:
                     TOMsMessageLog.logMessage(
-                        "In getTariffZoneDetails. Found PTA.", level=logging.DEBUG
+                        "In getTariffZoneDetails. Found PTA.",
+                        level=TOMsMessageLog.DEBUG,
                     )
                     ptaTimePeriodID = poly.attribute("TimePeriodID")
                     ptaMaxStayID = poly.attribute("MaxStayID")
                     ptaNoReturnID = poly.attribute("NoReturnID")
                     TOMsMessageLog.logMessage(
                         "In getTariffZoneMaxStayID. ID." + str(ptaMaxStayID),
-                        level=logging.DEBUG,
+                        level=TOMsMessageLog.DEBUG,
                     )
                     return ptaTimePeriodID, ptaMaxStayID, ptaNoReturnID
 
@@ -1241,7 +1246,7 @@ class GenerateGeometryUtils(QObject):
             "In findNearestPointOnLineLayer. Checking lineLayer: {}: {}".format(
                 lineLayer.name(), geometryIDs
             ),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
         searchRect = QgsRectangle(
             searchPt.x() - tolerance,
@@ -1261,7 +1266,7 @@ class GenerateGeometryUtils(QObject):
         for feat in lineLayer.getFeatures(request):
             TOMsMessageLog.logMessage(
                 "In findNearestPointOnLineLayer: {}".format(feat.id()),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
             if geometryIDs is not None:
                 # print ('***** currGeometryID: {}; GeometryID: {}'.format(currGeometryID, f.attribute("GeometryID")))
@@ -1289,7 +1294,7 @@ class GenerateGeometryUtils(QObject):
         TOMsMessageLog.logMessage(
             "In findNearestPointOnLineLayer: shortestDistance: "
             + str(shortestDistance),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         if shortestDistance < float("inf"):
@@ -1301,7 +1306,9 @@ class GenerateGeometryUtils(QObject):
 
     @staticmethod
     def getLineOrientationAtPoint(point, lineFeature):
-        TOMsMessageLog.logMessage("getLineOrientationAtPoint ...", level=logging.DEBUG)
+        TOMsMessageLog.logMessage(
+            "getLineOrientationAtPoint ...", level=TOMsMessageLog.DEBUG
+        )
 
         lineGeom = lineFeature.geometry()
         (
@@ -1341,12 +1348,12 @@ class GenerateGeometryUtils(QObject):
         TOMsMessageLog.logMessage(
             f"getLineOrientationAtPoint 1: {orientationToFeature}; 2: {orientationInFeatureDirection}; 3: "
             f"{orientationAwayFromFeature}; 4: {orientationOppositeFeatureDirection}",
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
         TOMsMessageLog.logMessage(
             f"getLineOrientationAtPoint 6: {orientationObliqueInFeatureDirection}; "
             f"7: {orientationObliqueOppositeFeatureDirection}",
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         return (
@@ -1370,7 +1377,9 @@ class GenerateGeometryUtils(QObject):
 
     @staticmethod
     def getSignOrientation(ptFeature, lineLayer):
-        TOMsMessageLog.logMessage("In getSignOrientation ...", level=logging.DEBUG)
+        TOMsMessageLog.logMessage(
+            "In getSignOrientation ...", level=TOMsMessageLog.DEBUG
+        )
         try:
             signOrientation = ptFeature.attribute("SignOrientationTypeID")
         except KeyError:
@@ -1389,13 +1398,13 @@ class GenerateGeometryUtils(QObject):
 
         TOMsMessageLog.logMessage(
             "In getSignOrientation - orientation: {}".format(signOrientation),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
         TOMsMessageLog.logMessage(
             "In getSignOrientation - signOriginalGeometry: {}".format(
                 signOriginalGeometry
             ),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
 
         if signOrientation is None:
@@ -1407,10 +1416,10 @@ class GenerateGeometryUtils(QObject):
         # signPt = ptFeature.geometry().asPoint()
         signPt = QgsGeometry.fromWkt(signOriginalGeometry).asPoint()
         # print('signPt: {}'.format(signPt.asWkt()))
-        # TOMsMessageLog.logMessage('getSignOrientation signPt: {}'.format(signPt.asWkt()), level=logging.DEBUG)
+        # TOMsMessageLog.logMessage('getSignOrientation signPt: {}'.format(signPt.asWkt()), level=TOMsMessageLog.DEBUG)
         TOMsMessageLog.logMessage(
             "In getSignOrientation lineLayer {}".format(lineLayer.name()),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
         (
             closestPoint,
@@ -1421,7 +1430,7 @@ class GenerateGeometryUtils(QObject):
         if closestPoint:
             TOMsMessageLog.logMessage(
                 "In getSignOrientation closestPoint: {}".format(closestPoint.asWkt()),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
             # get the orientation of the line feature
             (
@@ -1460,7 +1469,8 @@ class GenerateGeometryUtils(QObject):
             return None
 
         TOMsMessageLog.logMessage(
-            "getSignLine - orientation: {}".format(signOrientation), level=logging.DEBUG
+            "getSignLine - orientation: {}".format(signOrientation),
+            level=TOMsMessageLog.DEBUG,
         )
 
         lineGeom = None
@@ -1476,12 +1486,13 @@ class GenerateGeometryUtils(QObject):
             nrPlatesInSign = len(platesInSign)
             TOMsMessageLog.logMessage(
                 "getSignLine nrPlatesInSign: {}".format(nrPlatesInSign),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
             # TODO work out scaling required for sign here
             lineLength = (nrPlatesInSign + 1) * distanceForIcons
             TOMsMessageLog.logMessage(
-                "getSignLine lineLength: {}".format(lineLength), level=logging.DEBUG
+                "getSignLine lineLength: {}".format(lineLength),
+                level=TOMsMessageLog.DEBUG,
             )
             # print('getSignLine lineLength: {}'.format(lineLength))
 
@@ -1517,14 +1528,15 @@ class GenerateGeometryUtils(QObject):
 
         if lineGeom:
             TOMsMessageLog.logMessage(
-                "getSignLine lineGeom: {}".format(lineGeom.asWkt()), level=logging.DEBUG
+                "getSignLine lineGeom: {}".format(lineGeom.asWkt()),
+                level=TOMsMessageLog.DEBUG,
             )
 
         return lineGeom
 
     @staticmethod
     def getPlatesInSign(feature):
-        TOMsMessageLog.logMessage("getNrPlatesInSign ...", level=logging.DEBUG)
+        TOMsMessageLog.logMessage("getNrPlatesInSign ...", level=TOMsMessageLog.DEBUG)
         finished = False
         platesInSign = []
         nrPlatesInSign = 0
@@ -1561,7 +1573,7 @@ class GenerateGeometryUtils(QObject):
     def getGeneratedSignLine(feature):
         TOMsMessageLog.logMessage(
             "getGeneratedSignLine ... {}".format(feature.attribute("GeometryID")),
-            level=logging.DEBUG,
+            level=TOMsMessageLog.DEBUG,
         )
         roadCentreLineLayer = QgsProject.instance().mapLayersByName("RoadCentreLine")[0]
         try:
@@ -1588,18 +1600,18 @@ class GenerateGeometryUtils(QObject):
         if lineGeom:
             TOMsMessageLog.logMessage(
                 "getGeneratedSignLine: lineGeom: {}".format(lineGeom.asWkt()),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
         else:
             TOMsMessageLog.logMessage(
-                "getGeneratedSignLine: no geometry ...", level=logging.DEBUG
+                "getGeneratedSignLine: no geometry ...", level=TOMsMessageLog.DEBUG
             )
 
         return lineGeom, linePts
 
     @staticmethod
     def getSignIcons(ptFeature):
-        TOMsMessageLog.logMessage("getSignIcons ... ", level=logging.DEBUG)
+        TOMsMessageLog.logMessage("getSignIcons ... ", level=TOMsMessageLog.DEBUG)
         try:
             pathAbsolute = QgsExpressionContextUtils.projectScope(
                 QgsProject.instance()
@@ -1618,18 +1630,20 @@ class GenerateGeometryUtils(QObject):
             if signTypeRow:
                 icon = signTypeRow["Icon"]
                 TOMsMessageLog.logMessage(
-                    "getSignIcons: icon {}".format(icon), level=logging.DEBUG
+                    "getSignIcons: icon {}".format(icon), level=TOMsMessageLog.DEBUG
                 )
                 if not icon:
                     continue
                 path = os.path.join(pathAbsolute, icon)
                 plateIconsInSign.append(path)
-        # TOMsMessageLog.logMessage('getSignIcons ... returning ... ', level=logging.DEBUG)
+        # TOMsMessageLog.logMessage('getSignIcons ... returning ... ', level=TOMsMessageLog.DEBUG)
         return plateIconsInSign
 
     @staticmethod
     def getSignOrientationList(ptFeature):
-        TOMsMessageLog.logMessage("getSignOrientationList ...", level=logging.DEBUG)
+        TOMsMessageLog.logMessage(
+            "getSignOrientationList ...", level=TOMsMessageLog.DEBUG
+        )
         try:
             roadCentreLineLayer = QgsProject.instance().mapLayersByName(
                 "RoadCentreLine"
@@ -1674,7 +1688,7 @@ class GenerateGeometryUtils(QObject):
                 "getSignOrientationList ...{}".format(
                     newOrientationList[featureSignOrientation]
                 ),
-                level=logging.DEBUG,
+                level=TOMsMessageLog.DEBUG,
             )
             # return orientationList
             return newOrientationList[featureSignOrientation]

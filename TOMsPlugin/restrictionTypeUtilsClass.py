@@ -62,7 +62,7 @@ class TOMsParams(QObject):
     def __init__(self):
         QObject.__init__(self)
 
-        TOMsMessageLog.logMessage("In TOMSParams.init ...", level=Qgis.Info)
+        TOMsMessageLog.logMessage("In TOMSParams.init ...", level=TOMsMessageLog.DEBUG)
         self.tomsParamsList = [
             "BayWidth",
             "BayLength",
@@ -79,7 +79,9 @@ class TOMsParams(QObject):
 
     def getParams(self):
 
-        TOMsMessageLog.logMessage("In TOMsParams.getParams ...", level=Qgis.Info)
+        TOMsMessageLog.logMessage(
+            "In TOMsParams.getParams ...", level=TOMsMessageLog.DEBUG
+        )
         found = True
 
         # Check for project being open
@@ -91,11 +93,12 @@ class TOMsParams(QObject):
 
         else:
 
-            # TOMsMessageLog.logMessage("In TOMSLayers.getParams ... starting to get", level=Qgis.Info)
+            # TOMsMessageLog.logMessage("In TOMSLayers.getParams ... starting to get", level=logging.DEBUG)
 
             for param in self.tomsParamsList:
                 TOMsMessageLog.logMessage(
-                    "In TOMsParams.getParams ... getting " + str(param), level=Qgis.Info
+                    "In TOMsParams.getParams ... getting " + str(param),
+                    level=TOMsMessageLog.DEBUG,
                 )
 
                 currParam = None
@@ -117,7 +120,7 @@ class TOMsParams(QObject):
                         + str(param)
                         + " as "
                         + str(currParam),
-                        level=Qgis.Info,
+                        level=TOMsMessageLog.DEBUG,
                     )
                 else:
                     QMessageBox.information(
@@ -133,7 +136,7 @@ class TOMsParams(QObject):
         else:
             self.tomsParamsSet.emit()
 
-            # TOMsMessageLog.logMessage("In TOMSLayers.getParams ... finished ", level=Qgis.Info)
+            # TOMsMessageLog.logMessage("In TOMSLayers.getParams ... finished ", level=logging.DEBUG)
 
         return found
 
@@ -149,7 +152,9 @@ class TOMsConfigFile(QObject):
     def __init__(self):
         super().__init__()
 
-        TOMsMessageLog.logMessage("In TOMsConfigFile.init ...", level=Qgis.Info)
+        TOMsMessageLog.logMessage(
+            "In TOMsConfigFile.init ...", level=TOMsMessageLog.DEBUG
+        )
 
         self.config = configparser.ConfigParser()
 
@@ -182,13 +187,14 @@ class TOMsConfigFile(QObject):
             return
 
         TOMsMessageLog.logMessage(
-            "In getTOMsConfigFile. config_path: {}".format(configPath), level=Qgis.Info
+            "In getTOMsConfigFile. config_path: {}".format(configPath),
+            level=TOMsMessageLog.DEBUG,
         )
 
         configFile = os.path.abspath(os.path.join(configPath, "TOMs.conf"))
         TOMsMessageLog.logMessage(
             "In getTOMsConfigFile. TOMs_CONFIG_PATH: {}".format(configFile),
-            level=Qgis.Info,
+            level=TOMsMessageLog.DEBUG,
         )
 
         if not os.path.isfile(configFile):

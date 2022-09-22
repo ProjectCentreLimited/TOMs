@@ -45,9 +45,7 @@ from .generateGeometryUtils import GenerateGeometryUtils
 
 class TOMsExpressions:
     def __init__(self):
-        QgsMessageLog.logMessage(
-            "Starting expressions ... ", tag="TOMs Panel", level=Qgis.Warning
-        )
+        TOMsMessageLog.logMessage("Starting expressions ... ")
 
         self.functions = [
             self.generateDisplayGeometry,
@@ -94,7 +92,7 @@ class TOMsExpressions:
 
         TOMsMessageLog.logMessage(
             f'generateDisplayGeometry: {feature.attribute("GeometryID")}:{res.asWkt()}',
-            level=Qgis.Info,
+            level=TOMsMessageLog.DEBUG,
         )
         return res
 
@@ -115,12 +113,14 @@ class TOMsExpressions:
                 f'[{feature.attribute("GeometryID")}]: {e}',
                 level=Qgis.Warning,
             )
-            TOMsMessageLog.logMessage("generateDisplayGeometry", level=Qgis.Info)
+            TOMsMessageLog.logMessage(
+                "generateDisplayGeometry", level=TOMsMessageLog.DEBUG
+            )
             _, _, excTraceback = sys.exc_info()
             TOMsMessageLog.logMessage(
                 "generateDisplayGeometry error in expression function: "
                 + str(repr(traceback.extract_tb(excTraceback))),
-                level=Qgis.Info,
+                level=TOMsMessageLog.DEBUG,
             )
 
         return res
@@ -132,7 +132,7 @@ class TOMsExpressions:
         # http://www.lutraconsulting.co.uk/blog/2014/10/17/getting-started-writing-qgis-python-plugins/
         # generates "closest feature" function
 
-        # TOMsMessageLog.logMessage("In setAzimuthToRoadCentreLine(helper):", level=Qgis.Info)
+        # TOMsMessageLog.logMessage("In setAzimuthToRoadCentreLine(helper):", level=TOMsMessageLog.DEBUG)
 
         try:
             return int(GenerateGeometryUtils.calculateAzimuthToRoadCentreLine(feature))
@@ -149,7 +149,7 @@ class TOMsExpressions:
     def getRoadName(feature, parent):
         # Determine road name from the kerb line layer
 
-        # TOMsMessageLog.logMessage("In getRoadName(helper):", level=Qgis.Info)
+        # TOMsMessageLog.logMessage("In getRoadName(helper):", level=TOMsMessageLog.DEBUG)
         try:
             newRoadName, _ = GenerateGeometryUtils.determineRoadName(feature)
         except Exception as e:
@@ -166,7 +166,7 @@ class TOMsExpressions:
     def getUSRN(feature, parent):
         # Determine road name from the kerb line layer
 
-        # TOMsMessageLog.logMessage("In getUSRN(helper):", level=Qgis.Info)
+        # TOMsMessageLog.logMessage("In getUSRN(helper):", level=TOMsMessageLog.DEBUG)
 
         try:
             _, newUSRN = GenerateGeometryUtils.determineRoadName(feature)
@@ -200,8 +200,6 @@ class TOMsExpressions:
     def getWaitingLabelLeader(feature, parent):
         # If the scale is within range (< 1250) and the label has been moved, create a line
 
-        # TOMsMessageLog.logMessage(
-        #    "In getWaitingLabelLeader ", level=Qgis.Info)
         try:
             labelLeaderGeom = GenerateGeometryUtils.generateWaitingLabelLeader(feature)
         except Exception as e:
@@ -217,8 +215,6 @@ class TOMsExpressions:
     def getLoadingLabelLeader(feature, parent):
         # If the scale is within range (< 1250) and the label has been moved, create a line
 
-        # TOMsMessageLog.logMessage(
-        #    "In getLoadingLabelLeader ", level=Qgis.Info)
         try:
             labelLeaderGeom = GenerateGeometryUtils.generateLoadingLabelLeader(feature)
         except Exception as e:
@@ -269,7 +265,7 @@ class TOMsExpressions:
             "In getWaitingRestrictionLabelText: Feature:{}".format(
                 feature.attribute("GeometryID")
             ),
-            level=Qgis.Info,
+            level=TOMsMessageLog.DEBUG,
         )
 
         try:
@@ -284,7 +280,9 @@ class TOMsExpressions:
                 ),
                 level=Qgis.Warning,
             )
-            TOMsMessageLog.logMessage("getWaitingRestrictionLabelText", level=Qgis.Info)
+            TOMsMessageLog.logMessage(
+                "getWaitingRestrictionLabelText", level=TOMsMessageLog.DEBUG
+            )
             _, _, excTraceback = sys.exc_info()
             TOMsMessageLog.logMessage(
                 "getWaitingRestrictionLabelText: error in expression function: "
@@ -298,7 +296,7 @@ class TOMsExpressions:
             + str(waitingText)
             + " Loading: "
             + str(loadingText),
-            level=Qgis.Info,
+            level=TOMsMessageLog.DEBUG,
         )
         # waitingText = "Test"
         if waitingText:
@@ -317,7 +315,7 @@ class TOMsExpressions:
             "In getLoadingRestrictionLabelText: Feature:{}".format(
                 feature.attribute("GeometryID")
             ),
-            level=Qgis.Info,
+            level=TOMsMessageLog.DEBUG,
         )
 
         try:
@@ -332,7 +330,7 @@ class TOMsExpressions:
                 + str(waitingText)
                 + " Loading: "
                 + str(loadingText),
-                level=Qgis.Info,
+                level=TOMsMessageLog.DEBUG,
             )
 
         except Exception as e:
@@ -422,7 +420,7 @@ class TOMsExpressions:
     def getBayLabelText(feature, parent):
         # Returns the text to label the feature
 
-        TOMsMessageLog.logMessage("In getBayLabelText:", level=Qgis.Info)
+        TOMsMessageLog.logMessage("In getBayLabelText:", level=TOMsMessageLog.DEBUG)
         try:
             (
                 maxStayText,
@@ -581,13 +579,14 @@ class TOMsExpressions:
 
         TOMsMessageLog.logMessage(
             "generateDemandPoints: {}".format(feature.attribute("GeometryID")),
-            level=Qgis.Info,
+            level=TOMsMessageLog.DEBUG,
         )
 
         demand = math.ceil(float(feature.attribute("Demand")))
 
         TOMsMessageLog.logMessage(
-            "generateDemandPoints: demand: {}".format(demand), level=Qgis.Info
+            "generateDemandPoints: demand: {}".format(demand),
+            level=TOMsMessageLog.DEBUG,
         )
 
         if demand == 0:
@@ -602,7 +601,7 @@ class TOMsExpressions:
             "generateDemandPoints: capacity: {}; nrSpaces: {}; demand: {}".format(
                 capacity, nrSpaces, demand
             ),
-            level=Qgis.Info,
+            level=TOMsMessageLog.DEBUG,
         )
 
         # now get geometry for demand locations
@@ -634,7 +633,7 @@ class TOMsExpressions:
 
         TOMsMessageLog.logMessage(
             "generateDemandPoints: bays to delete {}".format(listBaysToDelete),
-            level=Qgis.Info,
+            level=TOMsMessageLog.DEBUG,
         )
 
         centroidGeomList = []
@@ -642,7 +641,7 @@ class TOMsExpressions:
         for polygonGeom in geomShowingSpaces.parts():
             TOMsMessageLog.logMessage(
                 "generateDemandPoints: considering part {}".format(counter),
-                level=Qgis.Info,
+                level=TOMsMessageLog.DEBUG,
             )
             if counter not in listBaysToDelete:
                 centrePt = QgsPointXY(polygonGeom.centroid())
@@ -650,7 +649,7 @@ class TOMsExpressions:
                     "generateDemandPoints: adding centroid for {}: {}".format(
                         counter, centrePt.asWkt()
                     ),
-                    level=Qgis.Info,
+                    level=TOMsMessageLog.DEBUG,
                 )
                 try:
                     centroidGeomList.append(centrePt)
@@ -665,7 +664,7 @@ class TOMsExpressions:
 
         TOMsMessageLog.logMessage(
             "generateDemandPoints: nrDemandPoints {}".format(len(centroidGeomList)),
-            level=Qgis.Info,
+            level=TOMsMessageLog.DEBUG,
         )
 
         try:
@@ -682,7 +681,8 @@ class TOMsExpressions:
         tomsList = QgsExpression.Functions()
         for func in self.functions:
             TOMsMessageLog.logMessage(
-                "Considering function {}".format(func.name()), level=Qgis.Info
+                "Considering function {}".format(func.name()),
+                level=TOMsMessageLog.DEBUG,
             )
             try:
                 if func in tomsList:
@@ -693,7 +693,7 @@ class TOMsExpressions:
             if QgsExpression.registerFunction(func):
                 TOMsMessageLog.logMessage(
                     "Registered expression function {}".format(func.name()),
-                    level=Qgis.Info,
+                    level=TOMsMessageLog.DEBUG,
                 )
 
     def unregisterFunctions(self):
@@ -702,5 +702,5 @@ class TOMsExpressions:
             QgsExpression.unregisterFunction(func.name())
             TOMsMessageLog.logMessage(
                 "Unregistered expression function {}".format(func.name()),
-                level=Qgis.Info,
+                level=TOMsMessageLog.DEBUG,
             )

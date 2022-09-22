@@ -23,7 +23,7 @@ from qgis.PyQt.QtWidgets import (
     QMessageBox,
     QToolButton,
 )
-from qgis.utils import iface
+from qgis.utils import OverrideCursor, iface
 
 from .constants import ProposalStatus
 from .core.proposalsManager import TOMsProposalsManager
@@ -105,7 +105,7 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
         self.currProposal = None
 
         TOMsMessageLog.logMessage(
-            "Finished proposalsPanel init ...", level=Qgis.Warning
+            "Finished proposalsPanel init ...", level=TOMsMessageLog.DEBUG
         )
 
     def __enablePrintTool(self, active):  # pylint: disable=invalid-name
@@ -306,31 +306,6 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
             self.onProposalListIndexChanged
         )
 
-    def onChangeProposal(self):
-        TOMsMessageLog.logMessage("In onChangeProposal", level=Qgis.Info)
-
-        # https://gis.stackexchange.com/questions/94135/how-to-populate-a-combobox-with-layers-in-toc
-        newProposalID = self.dock.cb_ProposalsList.currentData()
-        newProposalTitle = self.dock.cb_ProposalsList.currentText()
-
-        self.proposalsManager.setCurrentProposal(newProposalID)
-        TOMsMessageLog.logMessage(
-            "In onChangeProposal. newProposalID: "
-            + str(newProposalID)
-            + " newProposalTitle: "
-            + str(newProposalTitle),
-            level=Qgis.Info,
-        )
-
-        # Set the project variable
-
-        QMessageBox.information(
-            iface.mainWindow(),
-            "Information",
-            "All changes will be rolled back",
-            QMessageBox.Ok,
-        )
-
     def onNewProposal(self):
         TOMsMessageLog.logMessage("In onNewProposal", level=Qgis.Info)
 
@@ -467,20 +442,12 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
             level=Qgis.Info,
         )
         currProposalID = self.dock.cb_ProposalsList.currentData()
-        self.proposalsManager.setCurrentProposal(currProposalID)
+
+        with OverrideCursor(Qt.WaitCursor):
+            self.proposalsManager.setCurrentProposal(currProposalID)
 
         TOMsMessageLog.logMessage(
             "In onProposalChanged. Zoom to extents", level=Qgis.Info
-        )
-
-    def updateCurrentProposal(self):
-        TOMsMessageLog.logMessage("In updateCurrentProposal.", level=Qgis.Info)
-        # Will be called whenever a new entry is selected in the combobox
-
-        # Can we check to see if there are any outstanding edits?!!
-
-        self.proposalsManager.setCurrentProposal(
-            self.dock.cb_ProposalsList.currentData()
         )
 
     def onDateChanged(self):
