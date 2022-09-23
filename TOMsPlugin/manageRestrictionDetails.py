@@ -13,7 +13,7 @@ from qgis.core import Qgis, QgsProject
 from qgis.gui import QgsFeatureListComboBox, QgsMapToolAdvancedDigitizing, QgsMapToolPan
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QMessageBox
+from qgis.PyQt.QtWidgets import QAction, QDockWidget, QMessageBox
 from qgis.utils import iface
 
 from .constants import RestrictionAction
@@ -538,6 +538,9 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
             if self.restrictionTransaction.currTransactionGroup.modified():
                 checkEditedGeometries(self.proposalsManager.currentProposal())
             self.restrictionTransaction.commitTransactionGroup()  # to remove edit mode
+            self.setupPanelTabs(
+                iface.mainWindow().findChild(QDockWidget, "ProposalPanelDockWidgetBase")
+            )
 
             TOMsMessageLog.logMessage(
                 "In doEditRestriction - tool deactivated", level=Qgis.Info
@@ -612,6 +615,9 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
             if self.restrictionTransaction.currTransactionGroup.modified():
                 checkSplitGeometries(self.proposalsManager.currentProposal())
             self.restrictionTransaction.commitTransactionGroup()  # to remove edit mode
+            self.setupPanelTabs(
+                iface.mainWindow().findChild(QDockWidget, "ProposalPanelDockWidgetBase")
+            )
 
             TOMsMessageLog.logMessage(
                 "In doSplitRestriction - tool deactivated", level=Qgis.Info

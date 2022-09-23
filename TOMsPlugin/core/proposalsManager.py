@@ -140,7 +140,7 @@ class TOMsProposalsManager(RestrictionTypeUtilsMixin, ProposalTypeUtilsMixin, QO
         for layerID, layerName in self.getRestrictionLayersList():
             TOMsMessageLog.logMessage(
                 f"updateMapCanvas: Considering layer: {layerName}",
-                level=Qgis.Info,
+                level=TOMsMessageLog.DEBUG,
             )
 
             layerFilterString = filterString
@@ -167,7 +167,7 @@ class TOMsProposalsManager(RestrictionTypeUtilsMixin, ProposalTypeUtilsMixin, QO
 
             TOMsMessageLog.logMessage(
                 f"In updateMapCanvas. Layer: {layerName} Date Filter: {layerFilterString}",
-                level=Qgis.Info,
+                level=TOMsMessageLog.DEBUG,
             )
             try:
                 self.tableNames.getLayer(layerName).dataProvider().setSubsetString(
@@ -210,7 +210,7 @@ class TOMsProposalsManager(RestrictionTypeUtilsMixin, ProposalTypeUtilsMixin, QO
                 # get the label layer
                 TOMsMessageLog.logMessage(
                     f"updateMapCanvas: Considering layer: {labelLayersName}",
-                    level=Qgis.Info,
+                    level=TOMsMessageLog.DEBUG,
                 )
                 try:
                     QgsProject.instance().mapLayersByName(labelLayersName)[
@@ -223,7 +223,9 @@ class TOMsProposalsManager(RestrictionTypeUtilsMixin, ProposalTypeUtilsMixin, QO
                     )
                     return False
 
-        TOMsMessageLog.logMessage("Finished updateMapCanvas ... ", level=Qgis.Warning)
+        TOMsMessageLog.logMessage(
+            "Finished updateMapCanvas ... ", level=TOMsMessageLog.DEBUG
+        )
 
         return True
 

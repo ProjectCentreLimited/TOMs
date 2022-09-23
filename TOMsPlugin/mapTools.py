@@ -698,7 +698,8 @@ class CreateRestrictionTool(RestrictionTypeUtilsMixin, QgsMapToolCapture):
 
 def checkSplitGeometries(currentProposal):
     """
-    When a geometry is split we need to deal with the new feature, and check whether or not the feature is part of the current proposal
+    When a geometry is split we need to deal with the new feature, and check whether
+    or not the feature is part of the current proposal
     """
 
     TOMsMessageLog.logMessage("In checkSplitGeometries ... ", level=Qgis.Info)
@@ -724,11 +725,14 @@ def checkSplitGeometries(currentProposal):
     ).attribute("code")
 
     for newFeature in newFeatures:
-        restrictionId = str(uuid.uuid4())
-        newFeature["RestrictionID"] = restrictionId
-        newFeature["OpenDate"] = None
-        newFeature["CloseDate"] = None
-        newFeature["GeometryID"] = None
+        restrictionId = newFeature["RestrictionID"]
+        origLayer.changeAttributeValues(
+            newFeature.id(),
+            {
+                newFeature.fieldNameIndex("OpenDate"): None,
+                newFeature.fieldNameIndex("CloseDate"): None,
+            },
+        )
         newRestrictionInProposal = QgsFeature(restrictionsInProposalsLayer.fields())
         newRestrictionInProposal.setGeometry(QgsGeometry())
         newRestrictionInProposal["ProposalID"] = currentProposal
@@ -738,7 +742,10 @@ def checkSplitGeometries(currentProposal):
             "ActionOnProposalAcceptance"
         ] = RestrictionAction.OPEN.value
         if not restrictionsInProposalsLayer.addFeature(newRestrictionInProposal):
-            raise Exception("Unable to add feature")
+            raise Exception(
+                "Unable to add feature\n"
+                + "\n".join(restrictionsInProposalsLayer.commitErrors())
+            )
 
     # Check if the split feature was in the current proposal
     restrictionFound = (
@@ -769,21 +776,26 @@ def checkSplitGeometries(currentProposal):
         newFeature["RestrictionID"] = restrictionId
         newFeature["OpenDate"] = None
         newFeature["CloseDate"] = None
-        newFeature["GeometryID"] = None
         if not origLayer.addFeature(newFeature):
             raise Exception(
                 "Unable to add feature\n" + "\n".join(origLayer.commitErrors())
             )
-        newRestrictionInProposal = QgsFeature(restrictionsInProposalsLayer.fields())
-        newRestrictionInProposal.setGeometry(QgsGeometry())
-        newRestrictionInProposal["ProposalID"] = currentProposal
-        newRestrictionInProposal["RestrictionID"] = restrictionId
-        newRestrictionInProposal["RestrictionTableID"] = currRestrictionLayerID
-        newRestrictionInProposal[
-            "ActionOnProposalAcceptance"
-        ] = RestrictionAction.OPEN.value
-        if not restrictionsInProposalsLayer.addFeature(newRestrictionInProposal):
-            raise Exception("Unable to add feature")
+
+        for action, currRestrictionId in [
+            (RestrictionAction.CLOSE, modifiedFeature["RestrictionID"]),
+            (RestrictionAction.OPEN, restrictionId),
+        ]:
+            newRestrictionInProposal = QgsFeature(restrictionsInProposalsLayer.fields())
+            newRestrictionInProposal.setGeometry(QgsGeometry())
+            newRestrictionInProposal["ProposalID"] = currentProposal
+            newRestrictionInProposal["RestrictionID"] = currRestrictionId
+            newRestrictionInProposal["RestrictionTableID"] = currRestrictionLayerID
+            newRestrictionInProposal["ActionOnProposalAcceptance"] = action.value
+            if not restrictionsInProposalsLayer.addFeature(newRestrictionInProposal):
+                raise Exception(
+                    "Unable to add feature\n"
+                    + "\n".join(restrictionsInProposalsLayer.commitErrors())
+                )
 
         unmodifiedLayer = QgsVectorLayer(origLayer.source(), "", "postgres")
         originalGeometry = list(
@@ -791,7 +803,7 @@ def checkSplitGeometries(currentProposal):
                 f'"RestrictionID" = \'{modifiedFeature["RestrictionID"]}\''
             )
         )[0].geometry()
-        modifiedFeature.setGeometry(originalGeometry)
+        origLayer.changeGeometry(modifiedFeature.id(), originalGeometry)
 
     else:
         # Clear dates but keep everything else
@@ -856,7 +868,9 @@ def checkEditedGeometries(currentProposal):
         newFeature["OpenDate"] = None
         newFeature["GeometryID"] = None
         if not origLayer.addFeature(newFeature):
-            raise Exception("Unable to add feature")
+            raise Exception(
+                "Unable to add feature\n" + "\n".join(origLayer.commitErrors())
+            )
 
         unmodifiedLayer = QgsVectorLayer(origLayer.source(), "", "postgres")
         originalGeometry = list(
@@ -877,7 +891,10 @@ def checkEditedGeometries(currentProposal):
             newRestrictionInProposal["RestrictionTableID"] = currRestrictionLayerID
             newRestrictionInProposal["ActionOnProposalAcceptance"] = action.value
             if not restrictionsInProposalsLayer.addFeature(newRestrictionInProposal):
-                raise Exception("Unable to add feature")
+                raise Exception(
+                    "Unable to add feature\n"
+                    + "\n".join(restrictionsInProposalsLayer.commitErrors())
+                )
 
         # If there are label layers, update those so that new feature is available
         layerDetails = TOMsLabelLayerNames(origLayer)

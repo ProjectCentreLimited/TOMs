@@ -157,8 +157,12 @@ class TOMsTransaction(QObject):
     def commitTransactionGroup(self):
 
         TOMsMessageLog.logMessage(
-            "In TOMsTransaction:commitTransactionGroup", level=Qgis.Warning
+            "In TOMsTransaction:commitTransactionGroup", level=Qgis.Info
         )
+
+        layer_list = list(self.currTransactionGroup.layers())
+        if len(layer_list) == 0:
+            return True  # nothing happens because edition was never activated
 
         if not self.currTransactionGroup:
             TOMsMessageLog.logMessage(
@@ -174,7 +178,10 @@ class TOMsTransaction(QObject):
             self.rollBackTransactionGroup()
             return False
 
-        layer = list(self.currTransactionGroup.layers())[0]
+        layer = layer_list[0]
+        if not layer.isEditable():
+            return True  # nothing happens because edition is not activated
+
         if not layer.commitChanges():
             QMessageBox.information(
                 None,
