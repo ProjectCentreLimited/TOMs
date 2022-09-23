@@ -9,7 +9,7 @@
 # Tim Hancock/Matthias Kuhn 2017
 # Oslandia 2022
 
-from qgis.core import Qgis, QgsProject
+from qgis.core import Qgis, QgsProject, QgsVectorLayer
 from qgis.PyQt.QtCore import QCoreApplication, QStringListModel, Qt
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
@@ -167,6 +167,7 @@ class SearchBar:
             "In doGoToItem: queryString: " + str(queryString), level=Qgis.Info
         )
 
+        self.gazetteerLayer.selectByExpression(queryString, QgsVectorLayer.SetSelection)
         self.canvas.zoomToSelected(self.gazetteerLayer)
 
     def unload(self) -> None:
