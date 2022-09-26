@@ -110,25 +110,25 @@
      form_path = %%USERPROFILE%%/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/TOMsPlugin/ui
      ```
 
-  * The `qgis_plugin` directory is a clone of the [TOMsPlugin](https://github.com/ProjectCentreLimited/TOMs.git) directory
-  * The `aws_deploy.conf` describes the deployment configuration read by the `aws_deploy.py` script (on Windows)
+   * The `qgis_plugin` directory is a clone of the [TOMsPlugin](https://github.com/ProjectCentreLimited/TOMs.git) directory
+   * The `aws_deploy.conf` describes the deployment configuration read by the `aws_deploy.py` script (on Windows)
 
-    ```ini
-    [users]
-    benoit.de.mezzo@oslandia.com = admin
+     ```ini
+     [users]
+     benoit.de.mezzo@oslandia.com = admin
 
-    ; Vars %%DEPLOY_ROOT_DIR%% and %%DEPLOY_USER_ELEVATION%% are generated at runtime
-    [qgis]
-    ini_file_path = %%DEPLOY_ROOT_DIR%%/%%DEPLOY_USER_ELEVATION%%/QGISCUSTOMIZATION3.ini
-    plugin_dir_path = %%DEPLOY_ROOT_DIR%%/qgis_plugin/TOMsPlugin
+     ; Vars %%DEPLOY_ROOT_DIR%% and %%DEPLOY_USER_ELEVATION%% are generated at runtime
+     [qgis]
+     ini_file_path = %%DEPLOY_ROOT_DIR%%/%%DEPLOY_USER_ELEVATION%%/QGISCUSTOMIZATION3.ini
+     plugin_dir_path = %%DEPLOY_ROOT_DIR%%/qgis_plugin/TOMsPlugin
 
-    [toms]
-    qgis_project_file_path = %%DEPLOY_ROOT_DIR%%/%%DEPLOY_USER_ELEVATION%%/CEC.qgs
-    config_file_path = %%DEPLOY_ROOT_DIR%%/%%DEPLOY_USER_ELEVATION%%/TOMs.conf
+     [toms]
+     qgis_project_file_path = %%DEPLOY_ROOT_DIR%%/%%DEPLOY_USER_ELEVATION%%/CEC.qgs
+     config_file_path = %%DEPLOY_ROOT_DIR%%/%%DEPLOY_USER_ELEVATION%%/TOMs.conf
 
-    [pg_service]
-    conf_file_path = %%DEPLOY_ROOT_DIR%%/%%DEPLOY_USER_ELEVATION%%/.pg_service.conf
-    ```
+     [pg_service]
+     conf_file_path = %%DEPLOY_ROOT_DIR%%/%%DEPLOY_USER_ELEVATION%%/.pg_service.conf
+     ```
 
 1. On the `c:\script` directory of AWS image builder, add a file `aws_startup.bat` with this content:
 
@@ -140,8 +140,9 @@
    set DEPLOY_ROOT_DIR=\\samba.private-projectcenter.com\appstream\live
    set DEPLOY_CONFIG_FILE=%DEPLOY_ROOT_DIR%\aws_deploy.conf
 
-   "C:\Program Files\QGIS 3.22.10\bin\python-qgis-ltr.bat" %DEPLOY_ROOT_DIR%\qgis_plugin\script\aws_deploy.py
+   "C:\Program Files\QGIS 3.22.10\bin\python-qgis-ltr.bat" %DEPLOY_ROOT_DIR%\qgis_plugin\script\aws\aws_deploy.py
 
+   timeout /T 10
    net use S: /delete
    ```
 
