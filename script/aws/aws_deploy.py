@@ -43,7 +43,8 @@ def copy_file(label: str, srcPath: str, destPath: str, fileMode=None):
     shutil.copyfile(finalSrcPath, finalDestPath)
 
     if fileMode:
-        subprocess.check_call(["attrib", fileMode, "/S", finalDestPath])
+        for m in fileMode:
+            subprocess.check_call(["attrib", m, "/S", finalDestPath])
 
     logger.info(
         "'{}' file '{}' copied to '{}'".format(label, finalSrcPath, finalDestPath)
@@ -69,7 +70,8 @@ def copy_directory(label: str, srcPath: str, destPath: str, purge=False, fileMod
     shutil.copytree(finalSrcPath, finalDestPath)
 
     if fileMode:
-        subprocess.check_call(["attrib", fileMode, "/S", finalDestPath])
+        for m in fileMode:
+            subprocess.check_call(["attrib", m, "/S", finalDestPath])
 
     logger.info(
         "'{}' directory '{}' copied to '{}'".format(label, finalSrcPath, finalDestPath)
@@ -132,7 +134,7 @@ if __name__ == "__main__":
         "Ini",
         config_prop("qgis", "ini_file_path"),
         "%USERPROFILE%/AppData/Roaming/QGIS/QGIS3/profiles/default/QGIS/",
-        "+r +h",
+        ["+r", "+h"],
     )
     copy_directory(
         "Plugin",
@@ -156,7 +158,7 @@ if __name__ == "__main__":
         "PG service",
         config_prop("pg_service", "conf_file_path"),
         "%APPDATA%/postgresql/",
-        "+r +h",
+        ["+r", "+h"],
     )
 
     imagePath = Path("c:/qgis_photo_path")
