@@ -48,8 +48,8 @@
    |  |- aws_deploy.conf
    ```
 
-   * `DEPLOY_LEVEL` are the different deploiment kinds: prod, test, staging...
-   * `USER_ELEVATION` are the different possible user elevations: admin, operator, guest...
+   * `DEPLOY_LEVEL` are the different deploiment kinds: `prod`, `test`, `staging`...
+   * `USER_ELEVATION` are the different possible user elevations: `admin`, `write_confirm_operator`, `guest`...
    * The `.pg_service.conf` will contain valid information to connect to the databases used in the `CEC.qgs` QGis project file. Its format is like:
 
      ```ini
@@ -152,6 +152,19 @@
 
 1. Follow instructions [To link Amazon FSx file shares with AppStream 2.0](https://aws.amazon.com/fr/blogs/desktop-and-application-streaming/using-amazon-fsx-with-amazon-appstream-2-0/)
    to use the script `c:\script\aws_startup.bat`
+
+
+## User elevation
+
+Differents permission are defined:
+
+| Name                        | Full control | Read | Write | Print | Report bay data | Confirm (accept or reject) orders |
+| ----                        | ----         | ---- | ----- | ----- | --------------- | --------------------------------- |
+| `admin`                     | Y            | Y    | Y     | Y     | Y               | Y                                 |
+| `write_confirm_operator`    | N            | Y    | Y     | Y     | Y               | Y                                 |
+| `write_no_confirm_operator` | N            | Y    | Y     | Y     | Y               | N                                 |
+| `read_only_operator`        | N            | Y    | N     | Y     | N               | N                                 |
+| `guest`                     | N            | Y    | N     | N     | N               | N                                 |
 
 ## Updates
 
