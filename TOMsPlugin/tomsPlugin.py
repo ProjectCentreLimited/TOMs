@@ -12,9 +12,8 @@
 from qgis.core import Qgis, QgsMessageLog
 from qgis.utils import iface
 
+from .constants import UserPermission
 from .core.tomsMessageLog import TOMsMessageLog
-
-# Import the code for the dialog
 from .expressions import TOMsExpressions
 from .proposalsPanel import ProposalsPanel
 
@@ -26,6 +25,7 @@ class TOMs:
 
         QgsMessageLog.logMessage("Starting TOMs... ", tag="TOMs Panel")
 
+        UserPermission.initialize()
         TOMsMessageLog.setLogFile()
 
         TOMsMessageLog.logMessage("Registering expression functions ... ")
