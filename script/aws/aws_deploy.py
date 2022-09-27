@@ -71,7 +71,7 @@ def copy_directory(label: str, srcPath: str, destPath: str, purge=False, fileMod
 
     if finalDestPath.exists():
         # remove hidden and RO flags to be able to replace the files
-        subprocess.check_call(["attrib", "-r", "-h", "/S", finalDestPath])
+        subprocess.check_call(["attrib", "-r", "-h", "/S", finalDestPath / "*"])
         if purge:
             shutil.rmtree(finalDestPath)
 
@@ -123,6 +123,7 @@ if __name__ == "__main__":
             mode = config["users"][user]
             if mode not in [
                 "admin",
+                "guest",
                 "write_confirm_operator",
                 "write_no_confirm_operator",
                 "read_only_operator",
@@ -145,23 +146,25 @@ if __name__ == "__main__":
     subprocess.check_call(["setx", "DEPLOY_USER_ELEVATION", mode])
 
     # ================ QGIS
+    # cleanup
+    qgisPath = Path(os.path.expandvars("%USERPROFILE%/AppData/Roaming/QGIS"))
+    if qgisPath.exists():
+        subprocess.check_call(["attrib", "-r", "-h", "/S", qgisPath / "*"])
+        shutil.rmtree(qgisPath)
+
+    # create default QGIS ini (if not exist) with TOMs plugin and customization activated.
     copy_file(
         "Ini",
         config_prop("qgis", "ini_file_path"),
         "%USERPROFILE%/AppData/Roaming/QGIS/QGIS3/profiles/default/QGIS/",
-        ["+r", "+h"],
     )
 
-    # create default QGIS ini (if not exist) with TOMs plugin activated. Could be in a dedicated file like the others
-    initPath = Path(
-        os.path.expandvars(
-            "%USERPROFILE%/AppData/Roaming/QGIS/QGIS3/profiles/default/QGIS/QGIS3.ini"
-        )
+    copy_file(
+        "Customizations",
+        config_prop("qgis", "customization_file_path"),
+        "%USERPROFILE%/AppData/Roaming/QGIS/QGIS3/profiles/default/QGIS/",
+        ["+r", "+h"],
     )
-    if not initPath.exists():
-        with open(initPath, "wb") as fdst:
-            fdst.write(bytearray("[PythonPlugins]\n".encode("ascii")))
-            fdst.write(bytearray("TOMsPlugin=true\n".encode("ascii")))
 
     copy_directory(
         "Plugin",
