@@ -123,9 +123,11 @@ class SearchBar:
 
     def doGoToItem(self) -> None:
 
-        TOMsMessageLog.logMessage("In doGoToItem:", level=Qgis.Info)
-
         searchText = self.searchTextbox.text()
+        if searchText == "":
+            return
+
+        TOMsMessageLog.logMessage("In doGoToItem:", level=Qgis.Info)
         TOMsMessageLog.logMessage(
             "In doGoToItem: searchText " + str(searchText), level=Qgis.Info
         )

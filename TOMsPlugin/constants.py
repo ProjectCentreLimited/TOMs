@@ -9,7 +9,71 @@
 # Tim Hancock/Matthias Kuhn 2017
 # Oslandia 2022
 
+import os
 from enum import Enum
+
+
+class UserPermission:
+    FULL_CONTROL = False
+    CONFIRM_ORDERS = False
+    REPORT_BAY_DATA = False
+    WRITE = False
+    PRINT = False
+    READ = False
+
+    @staticmethod
+    def initialize():
+        user_elevation = os.environ.get("DEPLOY_USER_ELEVATION", "guest")
+        if user_elevation == "admin":
+            UserPermission.FULL_CONTROL = True
+            UserPermission.CONFIRM_ORDERS = True
+            UserPermission.REPORT_BAY_DATA = True
+            UserPermission.WRITE = True
+            UserPermission.PRINT = True
+            UserPermission.READ = True
+        elif user_elevation == "write_confirm_operator":
+            UserPermission.FULL_CONTROL = False
+            UserPermission.CONFIRM_ORDERS = True
+            UserPermission.REPORT_BAY_DATA = True
+            UserPermission.WRITE = True
+            UserPermission.PRINT = True
+            UserPermission.READ = True
+        elif user_elevation == "write_no_confirm_operator":
+            UserPermission.FULL_CONTROL = False
+            UserPermission.CONFIRM_ORDERS = False
+            UserPermission.REPORT_BAY_DATA = True
+            UserPermission.WRITE = True
+            UserPermission.PRINT = True
+            UserPermission.READ = True
+        elif user_elevation == "read_only_operator":
+            UserPermission.FULL_CONTROL = False
+            UserPermission.REPORT_BAY_DATA = False
+            UserPermission.CONFIRM_ORDERS = False
+            UserPermission.WRITE = False
+            UserPermission.PRINT = True
+            UserPermission.READ = True
+        elif user_elevation == "guest":
+            UserPermission.FULL_CONTROL = False
+            UserPermission.REPORT_BAY_DATA = False
+            UserPermission.CONFIRM_ORDERS = False
+            UserPermission.WRITE = False
+            UserPermission.PRINT = False
+            UserPermission.READ = True
+        else:
+            raise ValueError(f"User elevation {user_elevation} is not valid")
+
+    @staticmethod
+    def prettyPrint():
+        if UserPermission.FULL_CONTROL:
+            return "ADMIN"
+        if UserPermission.CONFIRM_ORDERS:
+            return "WRITE (CAN CONFIRM)"
+        if UserPermission.WRITE:
+            return "WRITE"
+        if UserPermission.PRINT:
+            return "READ ONLY (CAN PRINT)"
+        if UserPermission.READ:
+            return "READ ONLY"
 
 
 class ProposalStatus(Enum):

@@ -9,6 +9,8 @@
 # Tim Hancock/Matthias Kuhn 2017
 # Oslandia 2022
 
+import os
+
 from qgis.core import Qgis, QgsProject
 from qgis.gui import QgsFeatureListComboBox, QgsMapToolAdvancedDigitizing, QgsMapToolPan
 from qgis.PyQt.QtCore import QCoreApplication
@@ -16,7 +18,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QDockWidget, QMessageBox
 from qgis.utils import iface
 
-from .constants import RestrictionAction
+from .constants import RestrictionAction, UserPermission
 from .core.tomsMessageLog import TOMsMessageLog
 from .importRestrictions.restrictionToImport import RestrictionToImport
 from .importRestrictions.tomsImportRestrictionsDialog import (
@@ -123,15 +125,17 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
         # Add actions to the toolbar
         self.tomsToolbar.addAction(self.actionSelectRestriction)
         self.tomsToolbar.addAction(self.actionRestrictionDetails)
-        self.tomsToolbar.addAction(self.actionCreateBayRestriction)
-        self.tomsToolbar.addAction(self.actionCreateLineRestriction)
-        self.tomsToolbar.addAction(self.actionCreatePolygonRestriction)
-        self.tomsToolbar.addAction(self.actionCreateSignRestriction)
-        self.tomsToolbar.addAction(self.actionRemoveRestriction)
-        self.tomsToolbar.addAction(self.actionEditRestriction)
-        self.tomsToolbar.addAction(self.actionSplitRestriction)
-        self.tomsToolbar.addAction(self.actionCreateConstructionLine)
-        self.tomsToolbar.addAction(self.actionImportRestrictions)
+
+        if UserPermission.WRITE:
+            self.tomsToolbar.addAction(self.actionCreateBayRestriction)
+            self.tomsToolbar.addAction(self.actionCreateLineRestriction)
+            self.tomsToolbar.addAction(self.actionCreatePolygonRestriction)
+            self.tomsToolbar.addAction(self.actionCreateSignRestriction)
+            self.tomsToolbar.addAction(self.actionRemoveRestriction)
+            self.tomsToolbar.addAction(self.actionEditRestriction)
+            self.tomsToolbar.addAction(self.actionSplitRestriction)
+            self.tomsToolbar.addAction(self.actionCreateConstructionLine)
+            self.tomsToolbar.addAction(self.actionImportRestrictions)
 
         # Connect action signals to slots
         self.actionRestrictionDetails.triggered.connect(self.doRestrictionDetails)
@@ -259,6 +263,7 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
                         self.restrictionTransaction,
                     )  # connects signals
 
+                    dialog.setEnabled(UserPermission.WRITE)
                     dialog.show()
 
             else:

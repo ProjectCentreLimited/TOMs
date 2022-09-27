@@ -10,6 +10,7 @@
 # Oslandia 2022
 
 import functools
+import os
 import re
 
 from qgis.core import Qgis, QgsProject  # QgsMapLayerRegistry,
@@ -19,13 +20,15 @@ from qgis.PyQt.QtGui import QIcon
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtWidgets import (
     QAction,
+    QComboBox,
     QDialogButtonBox,
+    QLabel,
     QMessageBox,
     QToolButton,
 )
 from qgis.utils import OverrideCursor, iface
 
-from .constants import ProposalStatus
+from .constants import ProposalStatus, UserPermission
 from .core.proposalsManager import TOMsProposalsManager
 from .core.tomsMessageLog import TOMsMessageLog
 from .core.tomsTransaction import TOMsTransaction
@@ -74,14 +77,26 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
         self.tool = TOMsInstantPrintTool(self.proposalsManager)
 
         # Add in details of the Instant Print plugin
-        self.toolButton = QToolButton(iface.mainWindow())
+        self.toolButton = QToolButton()
         self.toolButton.setIcon(QIcon(":/plugins/TOMs/InstantPrint/icons/icon.png"))
         self.toolButton.setCheckable(True)
         self.toolButton.setToolTip("Print")
-        self.printButtonAction = self.tomsToolbar.addWidget(self.toolButton)
+
+        if UserPermission.PRINT:
+            self.tomsToolbar.addWidget(self.toolButton)
 
         self.toolButton.toggled.connect(self.__enablePrintTool)
         iface.mapCanvas().mapToolSet.connect(self.__onPrintToolSet)
+
+        statusLabel = QLabel(
+            "&nbsp;&nbsp;<b>"
+            + UserPermission.prettyPrint()
+            + " - "
+            + os.environ.get("DEPLOY_STAGE", "UNKOWN DEPLOY STAGE")
+            + "&nbsp;&nbsp;<b>"
+        )
+        statusLabel.setStyleSheet("background-color: lightblue; color: black")
+        self.tomsToolbar.addWidget(statusLabel)
 
         self.searchBar.disableSearchBar()
         # print tool
@@ -430,6 +445,24 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
             )
         )
 
+        proposalStatusBox = self.proposalDialog.findChild(QComboBox, "ProposalStatusID")
+
+        def proposalStatusCallback(statusId):
+            # Only users with admin elevation can reject or accept a proposal
+            self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(
+                UserPermission.CONFIRM_ORDERS
+                or (
+                    proposalStatusBox.currentData()
+                    not in [
+                        ProposalStatus.ACCEPTED.value,
+                        ProposalStatus.REJECTED.value,
+                    ]
+                )
+            )
+
+        proposalStatusBox.currentIndexChanged.connect(proposalStatusCallback)
+
+        self.proposalDialog.setEnabled(UserPermission.WRITE)
         self.proposalDialog.show()
 
     def onProposalListIndexChanged(self):
