@@ -50,60 +50,10 @@
 
    * `DEPLOY_LEVEL` are the different deploiment kinds: `prod`, `test`, `staging`...
    * `USER_ELEVATION` are the different possible user elevations: `admin`, `write_confirm_operator`, `guest`...
-   * The `.pg_service.conf` will contain valid information to connect to the databases used in the `CEC.qgs` QGis project file. Its format is like:
 
-     ```ini
-     [toms_db]
-     host=toms-db.private-projectcenter.com
-     dbname=toms
-     port=5432
-     user=toms_operator
-     password=2022t4o8
-     ```
-
-   * The `QGISCUSTOMIZATION3.ini` contains QGis customizations like:
-
-     ```ini
-     Docks\ProcessingToolbox=false
-     Toolbars\mAnnotationsToolBar=false
-     Toolbars\mAttributesToolBar\ActionFeatureAction=false
-     Toolbars\mAttributesToolBar\mActionMapTips=false
-     Toolbars\mAttributesToolBar\mActionStatisticalSummary=false
-     Toolbars\mAttributesToolBar\toolboxAction=false
-     Toolbars\mDataSourceManagerToolBar=false
-     Toolbars\mDigitizeToolBar\AllEditsMenu=false
-     Toolbars\mDigitizeToolBar\mActionAddFeature=false
-     Toolbars\mDigitizeToolBar\mActionCopyFeatures=false
-     Toolbars\mDigitizeToolBar\mActionCutFeatures=false
-     Toolbars\mDigitizeToolBar\mActionDeleteSelected=false
-     Toolbars\mDigitizeToolBar\mActionMultiEditAttributes=false
-     Toolbars\mDigitizeToolBar\mActionToggleEditing=false
-     Toolbars\mFileToolBar=false
-     Toolbars\mHelpToolBar=false
-     Toolbars\mLabelToolBar\mActionDiagramProperties=false
-     Toolbars\mLabelToolBar\mActionPinLabels=false
-     Toolbars\mLayerToolBar=false
-     Toolbars\mMapNavToolBar\mActionNew3DMapCanvas=false
-     Toolbars\mMapNavToolBar\mActionTemporalController=false
-     Toolbars\mMapNavToolBar\mActionZoomToLayers=false
-     Toolbars\mMapNavToolBar\mActionZoomToSelected=false
-     Toolbars\mMeshToolBar=false
-     Toolbars\mPluginToolBar=false
-     Toolbars\mRasterToolBar=false
-     Toolbars\mSelectionToolBar=false
-     Toolbars\mShapeDigitizeToolBar=false
-     Toolbars\mShapeDigitizeToolBar\ActionAddCircle=false
-     Toolbars\mShapeDigitizeToolBar\ActionAddCircularString=false
-     Toolbars\mShapeDigitizeToolBar\ActionAddEllipse=false
-     Toolbars\mShapeDigitizeToolBar\ActionAddRectangle=false
-     Toolbars\mShapeDigitizeToolBar\ActionAddRegularPolygon=false
-     Toolbars\mSnappingToolBar=false
-     Toolbars\mVectorToolBar=false
-     Toolbars\mWebToolBar=false
-     Widgets\QgsAbout=false
-     ```
-
-   * The `TOMs.conf` contains the TOMs plugin configuration and must reference the plugin forms with this path:
+   * The `.pg_service.conf` will contain valid information to connect to the databases used in the `CEC.qgs` QGis project file  (see [sample](pg_service.sample.conf)).
+   * The `QGISCUSTOMIZATION3.ini` contains QGis customizations (see [sample](QGISCUSTOMIZATION3.sample.ini)).
+   * The `TOMs.conf` contains the TOMs plugin configuration and must reference the plugin forms with this path (see [sample](TOMs.sample.conf)):
 
      ```ini
      [TOMsLayers]
@@ -111,47 +61,21 @@
      ```
 
    * The `qgis_plugin` directory is a clone of the [TOMsPlugin](https://github.com/ProjectCentreLimited/TOMs.git) directory
-   * The `aws_deploy.conf` describes the deployment configuration read by the `aws_deploy.py` script (on Windows)
+   * The `aws_deploy.conf` describes the deployment configuration read by the `aws_deploy.py` script (on Windows) (see [sample](aws_deploy.windows-sample.conf))
 
-     ```ini
-     [users]
-     benoit.de.mezzo@oslandia.com = admin
-
-     ; Vars %%DEPLOY_ROOT_DIR%% and %%DEPLOY_USER_ELEVATION%% are generated at runtime
-     [qgis]
-     ini_file_path = %%DEPLOY_ROOT_DIR%%/%%DEPLOY_USER_ELEVATION%%/QGISCUSTOMIZATION3.ini
-     plugin_dir_path = %%DEPLOY_ROOT_DIR%%/qgis_plugin/TOMsPlugin
-
-     [toms]
-     qgis_project_file_path = %%DEPLOY_ROOT_DIR%%/%%DEPLOY_USER_ELEVATION%%/CEC.qgs
-     config_file_path = %%DEPLOY_ROOT_DIR%%/%%DEPLOY_USER_ELEVATION%%/TOMs.conf
-
-     [pg_service]
-     conf_file_path = %%DEPLOY_ROOT_DIR%%/%%DEPLOY_USER_ELEVATION%%/.pg_service.conf
-     ```
-
-1. On the `c:\script` directory of AWS image builder, add a file `aws_startup.bat` with this content:
-
-   ```bat
-   @echo off
-   net use S: /delete
-   net use S: \\samba.private-projectcenter.com\appstream 2022u6 /user:ubuntu
-
-   set DEPLOY_ROOT_DIR=\\samba.private-projectcenter.com\appstream\live
-   set DEPLOY_CONFIG_FILE=%DEPLOY_ROOT_DIR%\aws_deploy.conf
-
-   call "C:\Program Files\QGIS 3.22.10\bin\python-qgis-ltr.bat" %DEPLOY_ROOT_DIR%\qgis_plugin\script\aws\aws_deploy.py
-
-   timeout /T 10 /NOBREAK
-   net use S: /delete
-   ```
+1. On the `c:\script` directory of AWS image builder, add a file `aws_startup.bat` like this [sample](aws_startup.sample.bat). In this sample:
 
    * `\\samba.private-projectcenter.com\appstream` references the share previouly created
-   * `ubuntu` references the user (smb) previously created
+   * `ubuntu` references the samba user previously created
    * `DEPLOY_ROOT_DIR` references a deploy level directory inside `/home/ubuntu/appstream` (f.e. `live`)
 
+1. On the `c:\script` directory of AWS image builder, add a file `aws_cleanup.bat` like this [sample](aws_cleanup.sample.bat).
+
+1. On the `c:\script` directory of AWS image builder, add a file `tom_launcher.bat` like this [sample](tom_launcher.sample.bat).
+   This script will be use in the `ImageAssistant` as the application to be launched.
+
 1. Follow instructions [To link Amazon FSx file shares with AppStream 2.0](https://aws.amazon.com/fr/blogs/desktop-and-application-streaming/using-amazon-fsx-with-amazon-appstream-2-0/)
-   to use the script `c:\script\aws_startup.bat`
+   to use the script `c:\script\aws_startup.bat` for `Logon` and `c:\script\aws_cleanup.bat` for `Logoff`.
 
 
 ## User elevation
