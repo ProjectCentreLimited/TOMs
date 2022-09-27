@@ -40,11 +40,16 @@ def copy_file(label: str, srcPath: str, destPath: str, fileMode=None):
         finalDestPath.mkdir(parents=True)
 
     finalDestPath = finalDestPath / finalSrcPath.name
+
+    # remove hidden and RO flags to be able to replace the file
+    if finalDestPath.exists():
+        subprocess.check_call(["attrib", "-r", "-h", finalDestPath])
+
     shutil.copyfile(finalSrcPath, finalDestPath)
 
     if fileMode:
         for m in fileMode:
-            subprocess.check_call(["attrib", m, "/S", finalDestPath])
+            subprocess.check_call(["attrib", m, finalDestPath])
 
     logger.info(
         "'{}' file '{}' copied to '{}'".format(label, finalSrcPath, finalDestPath)
@@ -64,8 +69,11 @@ def copy_directory(label: str, srcPath: str, destPath: str, purge=False, fileMod
 
     finalDestPath = finalDestPath / finalSrcPath.parts[-1]
 
-    if finalDestPath.exists() and purge:
-        shutil.rmtree(finalDestPath)
+    if finalDestPath.exists():
+        # remove hidden and RO flags to be able to replace the files
+        subprocess.check_call(["attrib", "-r", "-h", "/S", finalDestPath])
+        if purge:
+            shutil.rmtree(finalDestPath)
 
     shutil.copytree(finalSrcPath, finalDestPath)
 
@@ -136,6 +144,18 @@ if __name__ == "__main__":
         "%USERPROFILE%/AppData/Roaming/QGIS/QGIS3/profiles/default/QGIS/",
         ["+r", "+h"],
     )
+
+    # create default QGIS ini (if not exist) with TOMs plugin activated. Could be in a dedicated file like the others
+    initPath = Path(
+        os.path.expandvars(
+            "%USERPROFILE%/AppData/Roaming/QGIS/QGIS3/profiles/default/QGIS/QGIS3.ini"
+        )
+    )
+    if not initPath.exists():
+        with open(initPath, "wb") as fdst:
+            fdst.write(bytearray("[PythonPlugins]\n".encode("ascii")))
+            fdst.write(bytearray("TOMsPlugin=true\n".encode("ascii")))
+
     copy_directory(
         "Plugin",
         config_prop("qgis", "plugin_dir_path"),
