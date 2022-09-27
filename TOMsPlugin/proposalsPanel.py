@@ -445,14 +445,17 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
             )
         )
 
-        proposalStatusBox = self.proposalDialog.findChild(QComboBox, "ProposalStatusID")
-
-        def proposalStatusCallback(statusId):
-            # Only users with admin elevation can reject or accept a proposal
-            self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(
+        def proposalStatusCallback():
+            # Only users with the right privilege can reject or accept a proposal
+            currentStatusId = self.proposalDialog.findChild(
+                QComboBox, "ProposalStatusID"
+            ).currentData()
+            self.proposalDialog.findChild(QDialogButtonBox, "button_box").button(
+                QDialogButtonBox.Ok
+            ).setEnabled(
                 UserPermission.CONFIRM_ORDERS
                 or (
-                    proposalStatusBox.currentData()
+                    currentStatusId
                     not in [
                         ProposalStatus.ACCEPTED.value,
                         ProposalStatus.REJECTED.value,
@@ -460,7 +463,9 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
                 )
             )
 
-        proposalStatusBox.currentIndexChanged.connect(proposalStatusCallback)
+        self.proposalDialog.findChild(
+            QComboBox, "ProposalStatusID"
+        ).currentIndexChanged.connect(proposalStatusCallback)
 
         self.proposalDialog.setEnabled(UserPermission.WRITE)
         self.proposalDialog.show()
