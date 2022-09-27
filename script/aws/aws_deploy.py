@@ -2,6 +2,7 @@ import configparser
 import logging
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,7 +28,7 @@ def config_prop(section, prop):
         sys.exit("Error reading property '{}' from section '{}'!".format(section, prop))
 
 
-def copy_file(label: str, srcPath: str, destPath: str):
+def copy_file(label: str, srcPath: str, destPath: str, fileMode=None):
     finalSrcPath = Path(os.path.expandvars(srcPath))
     if not finalSrcPath.exists():
         sys.exit("'{}' file '{}' does not exist.".format(label, finalSrcPath))
@@ -39,13 +40,23 @@ def copy_file(label: str, srcPath: str, destPath: str):
         finalDestPath.mkdir(parents=True)
 
     finalDestPath = finalDestPath / finalSrcPath.name
+
+    # remove hidden and RO flags to be able to replace the file
+    if finalDestPath.exists():
+        subprocess.check_call(["attrib", "-r", "-h", finalDestPath])
+
     shutil.copyfile(finalSrcPath, finalDestPath)
+
+    if fileMode:
+        for m in fileMode:
+            subprocess.check_call(["attrib", m, finalDestPath])
+
     logger.info(
         "'{}' file '{}' copied to '{}'".format(label, finalSrcPath, finalDestPath)
     )
 
 
-def copy_directory(label: str, srcPath: str, destPath: str, purge=False):
+def copy_directory(label: str, srcPath: str, destPath: str, purge=False, fileMode=None):
     finalSrcPath = Path(os.path.expandvars(srcPath))
     if not finalSrcPath.exists():
         sys.exit("'{}' directory '{}' does not exist.".format(label, finalSrcPath))
@@ -58,10 +69,18 @@ def copy_directory(label: str, srcPath: str, destPath: str, purge=False):
 
     finalDestPath = finalDestPath / finalSrcPath.parts[-1]
 
-    if finalDestPath.exists() and purge:
-        shutil.rmtree(finalDestPath)
+    if finalDestPath.exists():
+        # remove hidden and RO flags to be able to replace the files
+        subprocess.check_call(["attrib", "-r", "-h", "/S", finalDestPath])
+        if purge:
+            shutil.rmtree(finalDestPath)
 
     shutil.copytree(finalSrcPath, finalDestPath)
+
+    if fileMode:
+        for m in fileMode:
+            subprocess.check_call(["attrib", m, "/S", finalDestPath])
+
     logger.info(
         "'{}' directory '{}' copied to '{}'".format(label, finalSrcPath, finalDestPath)
     )
@@ -89,7 +108,7 @@ if __name__ == "__main__":
     except Exception as e:
         sys.exit("Error parsing config file '{}'! Error: {}".format(configFile, e))
 
-    # ================ ELEVATION
+    # ================ USER ELEVATION
     user = os.environ.get("AppStream_UserName")
     if not user:
         logger.warning("Unable to obtain appstream username, using guest mode.")
@@ -97,7 +116,12 @@ if __name__ == "__main__":
     else:
         try:
             mode = config["users"][user]
-            if mode not in ["operator", "admin"]:
+            if mode not in [
+                "admin",
+                "write_confirm_operator",
+                "write_no_confirm_operator",
+                "read_only_operator",
+            ]:
                 logger.warning(
                     "Unknown elevation ('{}'), using guest mode.".format(mode)
                 )
@@ -118,7 +142,20 @@ if __name__ == "__main__":
         "Ini",
         config_prop("qgis", "ini_file_path"),
         "%USERPROFILE%/AppData/Roaming/QGIS/QGIS3/profiles/default/QGIS/",
+        ["+r", "+h"],
     )
+
+    # create default QGIS ini (if not exist) with TOMs plugin activated. Could be in a dedicated file like the others
+    initPath = Path(
+        os.path.expandvars(
+            "%USERPROFILE%/AppData/Roaming/QGIS/QGIS3/profiles/default/QGIS/QGIS3.ini"
+        )
+    )
+    if not initPath.exists():
+        with open(initPath, "wb") as fdst:
+            fdst.write(bytearray("[PythonPlugins]\n".encode("ascii")))
+            fdst.write(bytearray("TOMsPlugin=true\n".encode("ascii")))
+
     copy_directory(
         "Plugin",
         config_prop("qgis", "plugin_dir_path"),
@@ -141,6 +178,7 @@ if __name__ == "__main__":
         "PG service",
         config_prop("pg_service", "conf_file_path"),
         "%APPDATA%/postgresql/",
+        ["+r", "+h"],
     )
 
     imagePath = Path("c:/qgis_photo_path")
