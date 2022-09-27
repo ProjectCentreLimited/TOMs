@@ -158,14 +158,14 @@
 
 Differents permission are defined:
 
-| Name                        | Full control | Read | Write | Print | Report bay data | Confirm (accept or reject) orders |
-| ----                        | ----         | ---- | ----- | ----- | --------------- | --------------------------------- |
-| `admin`                     | Y            | Y    | Y     | Y     | Y               | Y                                 |
-| `write_confirm_operator`    | N            | Y    | Y     | Y     | Y               | Y                                 |
-| `write_no_confirm_operator` | N            | Y    | Y     | Y     | Y               | N                                 |
-| `read_only_operator`        | N            | Y    | N     | Y     | N               | N                                 |
-| `guest`                     | N            | Y    | N     | N     | N               | N                                 |
+| Name                        | Full control | Read | Write | Print | Report bay data | Confirm (accept or reject) orders | Db role         |
+| ----                        | ----         | ---- | ----- | ----- | --------------- | --------------------------------- | --              |
+| `admin`                     | Y            | Y    | Y     | Y     | Y               | Y                                 | `toms_admin`    |
+| `write_confirm_operator`    | N            | Y    | Y     | Y     | Y               | Y                                 | `toms_operator` |
+| `write_no_confirm_operator` | N            | Y    | Y     | Y     | Y               | N                                 | `toms_operator` |
+| `read_only_operator`        | N            | Y    | N     | Y     | N               | N                                 | `toms_public`   |
+| `guest`                     | N            | Y    | N     | N     | N               | N                                 | `toms_public`   |
 
 ## Updates
 
-To update a deployment just update the files in a `DEPLOY_LEVEL` for a given `USER_ELEVATION` (from the EC2 servcer) and restart the AppStream session.
+To update a deployment just update the files in a `DEPLOY_LEVEL` for a given `USER_ELEVATION` (from the EC2 server) and restart the AppStream session.
