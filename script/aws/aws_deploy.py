@@ -97,7 +97,12 @@ if __name__ == "__main__":
         sys.exit("Root directory '{}' is not a directory.".format(rootPath))
 
     os.environ["DEPLOY_ROOT_DIR"] = rootPath
+    # expose var to whole windows env:
+    stage = Path(rootPath).parts[-1]
+    os.environ["DEPLOY_STAGE"] = stage
+    subprocess.check_call(["setx", "DEPLOY_STAGE", stage])
 
+    # read config file
     configFile = Path(
         os.environ.get("DEPLOY_CONFIG_FILE", str(_here / "aws_deploy.conf"))
     )
@@ -136,6 +141,8 @@ if __name__ == "__main__":
             mode = "guest"
 
     os.environ["DEPLOY_USER_ELEVATION"] = mode
+    # expose var to whole windows env:
+    subprocess.check_call(["setx", "DEPLOY_USER_ELEVATION", mode])
 
     # ================ QGIS
     copy_file(
