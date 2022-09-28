@@ -14,45 +14,45 @@ from enum import Enum
 
 
 class UserPermission:
-    FULL_CONTROL = False
-    CONFIRM_ORDERS = False
-    REPORT_BAY_DATA = False
-    WRITE = False
-    PRINT = False
-    READ = False
+    FULL_CONTROL = False  # pylint: disable=invalid-name
+    CONFIRM_ORDERS = False  # pylint: disable=invalid-name
+    REPORT_BAY_DATA = False  # pylint: disable=invalid-name
+    WRITE = False  # pylint: disable=invalid-name
+    PRINT = False  # pylint: disable=invalid-name
+    READ = False  # pylint: disable=invalid-name
 
     @staticmethod
     def initialize():
-        user_elevation = os.environ.get("DEPLOY_USER_ELEVATION", "guest")
-        if user_elevation == "admin":
+        userElevation = os.environ.get("DEPLOY_USER_ELEVATION", "guest")
+        if userElevation == "admin":
             UserPermission.FULL_CONTROL = True
             UserPermission.CONFIRM_ORDERS = True
             UserPermission.REPORT_BAY_DATA = True
             UserPermission.WRITE = True
             UserPermission.PRINT = True
             UserPermission.READ = True
-        elif user_elevation == "write_confirm_operator":
+        elif userElevation == "write_confirm_operator":
             UserPermission.FULL_CONTROL = False
             UserPermission.CONFIRM_ORDERS = True
             UserPermission.REPORT_BAY_DATA = True
             UserPermission.WRITE = True
             UserPermission.PRINT = True
             UserPermission.READ = True
-        elif user_elevation == "write_no_confirm_operator":
+        elif userElevation == "write_no_confirm_operator":
             UserPermission.FULL_CONTROL = False
             UserPermission.CONFIRM_ORDERS = False
             UserPermission.REPORT_BAY_DATA = True
             UserPermission.WRITE = True
             UserPermission.PRINT = True
             UserPermission.READ = True
-        elif user_elevation == "read_only_operator":
+        elif userElevation == "read_only_operator":
             UserPermission.FULL_CONTROL = False
             UserPermission.REPORT_BAY_DATA = False
             UserPermission.CONFIRM_ORDERS = False
             UserPermission.WRITE = False
             UserPermission.PRINT = True
             UserPermission.READ = True
-        elif user_elevation == "guest":
+        elif userElevation == "guest":
             UserPermission.FULL_CONTROL = False
             UserPermission.REPORT_BAY_DATA = False
             UserPermission.CONFIRM_ORDERS = False
@@ -60,7 +60,7 @@ class UserPermission:
             UserPermission.PRINT = False
             UserPermission.READ = True
         else:
-            raise ValueError(f"User elevation {user_elevation} is not valid")
+            raise ValueError(f"User elevation {userElevation} is not valid")
 
     @staticmethod
     def prettyPrint():
@@ -74,6 +74,7 @@ class UserPermission:
             return "READ ONLY (CAN PRINT)"
         if UserPermission.READ:
             return "READ ONLY"
+        return "UNKNOWN USER ELEVATION"
 
 
 class ProposalStatus(Enum):
