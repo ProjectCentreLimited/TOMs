@@ -92,7 +92,7 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
             "&nbsp;&nbsp;<b>"
             + UserPermission.prettyPrint()
             + " - "
-            + os.environ.get("DEPLOY_STAGE", "UNKOWN DEPLOY STAGE")
+            + os.environ.get("DEPLOY_STAGE", "UNKNOWN DEPLOY STAGE").upper()
             + "&nbsp;&nbsp;<b>"
         )
         statusLabel.setStyleSheet("background-color: lightblue; color: black")
@@ -218,6 +218,7 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
 
         # set up action for "New Proposal"
         self.dock.btn_NewProposal.clicked.connect(self.onNewProposal)
+        self.dock.btn_NewProposal.setEnabled(UserPermission.CONFIRM_ORDERS)
 
         # set up action for "View Proposal"
         self.dock.btn_ViewProposal.clicked.connect(self.onProposalDetails)
