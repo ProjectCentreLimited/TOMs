@@ -218,7 +218,7 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
 
         # set up action for "New Proposal"
         self.dock.btn_NewProposal.clicked.connect(self.onNewProposal)
-        self.dock.btn_NewProposal.setEnabled(UserPermission.CONFIRM_ORDERS)
+        self.dock.btn_NewProposal.setEnabled(UserPermission.WRITE)
 
         # set up action for "View Proposal"
         self.dock.btn_ViewProposal.clicked.connect(self.onProposalDetails)
