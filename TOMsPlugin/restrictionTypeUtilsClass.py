@@ -36,7 +36,7 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from .constants import ProposalStatus, RestrictionAction
+from .constants import ProposalStatus, RestrictionAction, UserPermission
 from .core.tomsMessageLog import TOMsMessageLog
 from .generateGeometryUtils import GenerateGeometryUtils
 from .ui.tomsCamera import FormCamera
@@ -666,6 +666,13 @@ class RestrictionTypeUtilsMixin:
     def onSaveRestrictionDetails(
         self, currRestriction, currRestrictionLayer, dialog, restrictionTransaction
     ):
+        if not UserPermission.WRITE:
+            QMessageBox.warning(
+                None,
+                "Read Only",
+                "Nothing will be saved because you only have read access",
+            )
+            return
         TOMsMessageLog.logMessage(
             "In onSaveRestrictionDetails: "
             + str(currRestriction.attribute("GeometryID")),

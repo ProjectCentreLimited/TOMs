@@ -245,7 +245,6 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
                         self.restrictionTransaction,
                     )  # connects signals
 
-                    dialog.setEnabled(UserPermission.WRITE)
                     dialog.show()
 
             else:
