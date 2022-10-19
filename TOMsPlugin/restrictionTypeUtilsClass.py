@@ -1364,13 +1364,12 @@ class RestrictionTypeUtilsMixin:
         proposalAcceptedRejected = False
 
         if newProposalStatusID == ProposalStatus.ACCEPTED.value:  # 2 = accepted
-            # if currProposal[idxProposalStatusID] == ProposalStatus.ACCEPTED:  # 2 = accepted
 
             reply = QMessageBox.question(
                 None,
                 "Confirm changes to Proposal",
                 # How do you access the main window to make the popup ???
-                "Do you want to ACCEPT this proposal?. Accepting will make all the proposed changes permanent.",
+                "Do you want to ACCEPT this proposal? Accepting will make all the proposed changes permanent.",
                 QMessageBox.Yes,
                 QMessageBox.No,
             )
@@ -1403,7 +1402,7 @@ class RestrictionTypeUtilsMixin:
                 None,
                 "Confirm changes to Proposal",
                 # How do you access the main window to make the popup ???
-                "Do you want to REJECT this proposal?. This will remove it from the "
+                "Do you want to REJECT this proposal? This will remove it from the "
                 "Proposal list (although it will remain in the system).",
                 QMessageBox.Yes,
                 QMessageBox.No,

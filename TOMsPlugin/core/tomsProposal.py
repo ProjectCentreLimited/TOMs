@@ -448,9 +448,9 @@ class TOMsProposal(ProposalTypeUtilsMixin, QObject):
                     "In TOMsProposal.acceptProposal: current tile "
                     + str(currTile.tileNr())
                     + " current RevisionNr: "
-                    + str(currTile.getRevisionNr_AtDate())
+                    + str(currTile.getRevisionNrAtDate())
                     + " RevisionDate: "
-                    + str(currTile.getLastRevisionDate_AtDate()),
+                    + str(currTile.getLastRevisionDateAtDate()),
                     level=Qgis.Warning,
                 )
                 # currTile = TOMsTile(self.proposalsManager, tileNr)
