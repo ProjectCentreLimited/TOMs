@@ -10,7 +10,7 @@
 # Oslandia 2022
 
 from qgis.core import Qgis, QgsProject
-from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, QTimer
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QDockWidget, QMessageBox
 from qgis.utils import iface
@@ -159,6 +159,14 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
         self.currLayer = None
         self.currProposalID = None
         self._currentlyEdittedLabelLayers = None
+
+        # timer for splitting more than once
+        self.splitTimer = QTimer()
+        self.splitTimer.setSingleShot(True)
+        self.splitTimer.setInterval(1000)
+        self.splitTimer.timeout.connect(
+            lambda: self.actionSplitRestriction.setChecked(False)
+        )
 
     def enableTOMsToolbarItems(self, restrictionTransaction):
 
@@ -537,18 +545,7 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
     def doSplitRestriction(self):
 
         TOMsMessageLog.logMessage("In doSplitRestriction - starting", level=Qgis.Info)
-
         currRestrictionLayer = iface.activeLayer()
-        if self.restrictionTransaction.currTransactionGroup.modified():
-            if (
-                QMessageBox.question(
-                    iface.mainWindow(),
-                    "Editing in progress",
-                    "Do you want to save the changes?",
-                )
-                == QMessageBox.No
-            ):
-                self.restrictionTransaction.rollBackTransactionGroup()
 
         if self.actionSplitRestriction.isChecked():
             TOMsMessageLog.logMessage(
@@ -575,8 +572,8 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
                 self.restrictionTransaction.startTransactionGroup()
                 iface.actionSplitFeatures().trigger()
                 self.mapTool = iface.mapCanvas().mapTool()
-                iface.actionSplitFeatures().toggled.connect(
-                    lambda: self.actionSplitRestriction.setChecked(False)
+                currRestrictionLayer.editBuffer().featureAdded.connect(
+                    self.stopSplitting
                 )
                 self.setupPanelTabs(iface.cadDockWidget())
                 iface.cadDockWidget().enable()
@@ -591,10 +588,6 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
                 self.actionSplitRestriction.setChecked(False)
 
         else:
-            try:
-                iface.actionSplitFeatures().toggled.disconnect()
-            except TypeError:
-                pass
             if iface.mapCanvas().mapTool() is self.mapTool:
                 iface.actionPan().trigger()
 
@@ -610,3 +603,10 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
             )
 
         TOMsMessageLog.logMessage("In doSplitRestriction - leaving", level=Qgis.Info)
+
+    def stopSplitting(self):
+        # We can receive many time the featureAdded from the layer buffer
+        # if there is a multi-split, we want to commit the split only after
+        # the last featureAdded signal has been emitted.
+        # There is no signal for that situation, hence the timer.
+        self.splitTimer.start()
