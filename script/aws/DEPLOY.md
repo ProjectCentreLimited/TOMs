@@ -29,6 +29,9 @@
    |  |  |- CEC.qgs
    |  |  |- QGISCUSTOMIZATION3.ini
    |  |  |- TOMs.conf
+   |  \- resources/
+   |  |  |- client_logo.svg
+   |  |  |- ...
    |  \- qgis_plugin/
    |  |  |- ...
    |  |- aws_deploy.conf
@@ -43,6 +46,9 @@
    |  |  |- CEC.qgs
    |  |  |- QGISCUSTOMIZATION3.ini
    |  |  |- TOMs.conf
+   |  \- resources/
+   |  |  |- client_logo.svg
+   |  |  |- ...
    |  \- qgis_plugin/
    |  |  |- ...
    |  |- aws_deploy.conf
