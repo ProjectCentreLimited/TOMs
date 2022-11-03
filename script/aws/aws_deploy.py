@@ -180,6 +180,11 @@ if __name__ == "__main__":
         "c:/qgis_projects/",
     )
     copy_file(
+        "client logo",
+        config_prop("toms", "client_logo_file_path"),
+        "c:/qgis_projects/",
+    )
+    copy_file(
         "TOMs config", config_prop("toms", "config_file_path"), "c:/qgis_projects/"
     )
 
