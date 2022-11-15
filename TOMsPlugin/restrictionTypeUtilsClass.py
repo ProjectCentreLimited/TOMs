@@ -1081,6 +1081,7 @@ class RestrictionTypeUtilsMixin:
                 functools.partial(
                     self.checkElectricVehicleChargingPlace,
                     restrictionDialog,
+                    defaultPta,
                 )
             )
 
