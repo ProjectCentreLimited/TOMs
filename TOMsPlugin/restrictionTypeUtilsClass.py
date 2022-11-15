@@ -1069,29 +1069,31 @@ class RestrictionTypeUtilsMixin:
         )
 
         # For the specific case of Electric Vehicle Charging Place
-        # the CPZ must be editable
+        # the PTA must be editable
         if currRestrictionLayer.name() == "Bays":
-            defaultCpz, _ = GenerateGeometryUtils.getCurrentCPZDetails(currRestriction)
-
-            def checkElectricVehicleChargingPlace(a, b):
-                a.setEnabled(b.currentData() == 124)
-                if b.currentData() != 124:
-                    a.setCurrentText(defaultCpz)
-
-            restrictionTypeIdCbx = restrictionDialog.findChild(
-                QComboBox, "RestrictionTypeID"
+            defaultPta, _, _ = GenerateGeometryUtils.getCurrentPTADetails(
+                currRestriction
             )
-            cpzCbx = restrictionDialog.findChild(QComboBox, "CPZ")
-
-            checkElectricVehicleChargingPlace(cpzCbx, restrictionTypeIdCbx)
-
-            restrictionTypeIdCbx.currentTextChanged.connect(
+            self.checkElectricVehicleChargingPlace(restrictionDialog, defaultPta)
+            restrictionDialog.findChild(
+                QComboBox, "RestrictionTypeID"
+            ).currentTextChanged.connect(
                 functools.partial(
-                    checkElectricVehicleChargingPlace, cpzCbx, restrictionTypeIdCbx
+                    self.checkElectricVehicleChargingPlace,
+                    restrictionDialog,
                 )
             )
 
         self.photoDetails(restrictionDialog, currRestrictionLayer, currRestriction)
+
+    def checkElectricVehicleChargingPlace(self, restrictionDialog, defaultPta):
+        restrictionTypeIdCbx = restrictionDialog.findChild(
+            QComboBox, "RestrictionTypeID"
+        )
+        ptaCbx = restrictionDialog.findChild(QComboBox, "ParkingTariffArea")
+        ptaCbx.setEnabled(restrictionTypeIdCbx.currentData() == 124)
+        if restrictionTypeIdCbx.currentData() != 124:
+            ptaCbx.setCurrentText(defaultPta)
 
     def onRejectRestrictionDetailsFromForm(
         self, restrictionDialog, restrictionTransaction
