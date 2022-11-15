@@ -28,6 +28,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import NULL, QObject, pyqtSignal
 from qgis.PyQt.QtGui import QPixmap
 from qgis.PyQt.QtWidgets import (
+    QComboBox,
     QDialogButtonBox,
     QDockWidget,
     QLabel,
@@ -1066,6 +1067,24 @@ class RestrictionTypeUtilsMixin:
                 restrictionTransaction,
             )
         )
+
+        # For the specific case of Electric Vehicle Charging Place
+        # the CPZ must be editable
+        if currRestrictionLayer.name() == "Bays":
+
+            restrictionTypeIdCbx = restrictionDialog.findChild(
+                QComboBox, "RestrictionTypeID"
+            )
+            cpzCbx = restrictionDialog.findChild(QComboBox, "CPZ")
+
+            def checkElectricVehicleChargingPlace():
+                cpzCbx.setEnabled(restrictionTypeIdCbx.currentData() == 124)
+
+            checkElectricVehicleChargingPlace()
+
+            restrictionTypeIdCbx.currentTextChanged.connect(
+                checkElectricVehicleChargingPlace
+            )
 
         self.photoDetails(restrictionDialog, currRestrictionLayer, currRestriction)
 
