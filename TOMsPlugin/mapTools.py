@@ -452,7 +452,8 @@ class CreateRestrictionTool(RestrictionTypeUtilsMixin, QgsMapToolCapture):
         advancedDigitizingPanel = iface.cadDockWidget()
         advancedDigitizingPanel.setVisible(True)
         advancedDigitizingPanel.enable()
-        advancedDigitizingPanel.enableAction().trigger()
+        if not advancedDigitizingPanel.enableAction().isChecked():
+            advancedDigitizingPanel.enableAction().trigger()
         self.setupPanelTabs(advancedDigitizingPanel)
 
         self.layer().startEditing()
