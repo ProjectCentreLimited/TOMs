@@ -9,7 +9,6 @@
 # Tim Hancock/Matthias Kuhn 2017
 # Oslandia 2022
 
-import math
 import uuid
 
 from qgis.core import (
@@ -22,17 +21,13 @@ from qgis.core import (
     QgsGeometry,
     QgsProject,
     QgsRectangle,
+    QgsSettings,
     QgsTracer,
     QgsVectorLayer,
     QgsWkbTypes,
 )
 from qgis.gui import QgsMapToolCapture, QgsMapToolIdentify
-from qgis.PyQt.QtCore import (
-    QPoint,
-    Qt,
-    QTimer,
-    pyqtSlot,
-)
+from qgis.PyQt.QtCore import Qt, QTimer, pyqtSlot
 from qgis.PyQt.QtWidgets import (
     QAction,
     QMenu,
@@ -43,103 +38,19 @@ from qgis.utils import iface
 
 from .constants import RestrictionAction, RestrictionLayers
 from .core.tomsMessageLog import TOMsMessageLog
-from .core.tomsTransaction import TOMsTransaction
-from .restrictionTypeUtilsClass import RestrictionTypeUtilsMixin, TOMsLabelLayerNames
+from .generateGeometryUtils import GenerateGeometryUtils
+from .restrictionDialog import RestrictionDialogWrapper
+from .restrictionTypeUtilsClass import TOMsLabelLayerNames
+from .utils import getLookupDescription, setupPanelTabs
 
 
-class MapToolMixin:
-    """Mixin class that defines various helper methods for a QgsMapTool."""
-
-    def setLayer(self, layer):
-        self.layer = layer
-
-    def transformCoordinates(self, screenPt):
-        """Convert a screen coordinate to map and layer coordinates.
-
-        returns a (mapPt,layerPt) tuple.
-        """
-        return self.toMapCoordinates(screenPt)
-
-    def calcTolerance(self, pos):
-        """Calculate the "tolerance" to use for a mouse-click.
-
-        'pos' is a QPoint object representing the clicked-on point, in
-        canvas coordinates.
-
-        The tolerance is the number of map units away from the click
-        position that a vertex or geometry can be and we still consider it
-        to be a click on that vertex or geometry.
-        """
-        pt1 = QPoint(pos.x(), pos.y())
-        pt2 = QPoint(pos.x() + 10, pos.y())
-
-        mapPt1 = self.transformCoordinates(pt1)
-        mapPt2 = self.transformCoordinates(pt2)
-        tolerance = mapPt2.x() - mapPt1.x()
-
-        return tolerance
-
-    def findVertexAt(self, feature, pos):
-        """Find the vertex of the given feature close to the given position.
-
-        'feature' is the QgsFeature to check, and 'pos' is the position to
-        check, in canvas coordinates.
-
-        We return the vertex number for the closest vertex, or None if no
-        vertex is close enough to the given click position.
-        """
-        (
-            _,
-            vertex,
-            _,
-            _,
-            distSquared,
-        ) = feature.geometry().closestVertex(self.transformCoordinates(pos))
-        if math.sqrt(distSquared) > self.calcTolerance(pos):
-            return None
-        return vertex
-
-    def snapToNearestVertex(self, pos, excludeFeature=None):
-        """Attempt to snap the given point to the nearest vertex.
-
-        The parameters are as follows:
-
-            'pos'
-
-                The click position, in canvas coordinates.
-
-            'excludeFeature'
-
-                If specified, this is a QgsFeature which will be excluded
-                from the check for nearby vertices.  This is used to
-                prevent snapping an object to itself.
-
-        If the click position is close enough to a vertex in the track
-        layer (excluding the given feature, if any), we return the
-        coordinates of that vertex.  Otherwise, we return the click
-        position itself in layer coordinates.  Either way, the returned
-        point is in the map tool's layer's coordinates.
-        """
-        layerPt = self.transformCoordinates(pos)
-        feature = self.findFeatureAt(pos, excludeFeature)
-
-        if feature is None:
-            return layerPt
-
-        vertex = self.findVertexAt(feature, pos)
-        if vertex is None:
-            return layerPt
-
-        return feature.geometry().vertexAt(vertex)
-
-
-class GeometryInfoMapTool(MapToolMixin, RestrictionTypeUtilsMixin, QgsMapToolIdentify):
+class GeometryInfoMapTool(QgsMapToolIdentify):
     def __init__(self):
-        RestrictionTypeUtilsMixin.__init__(self)
         QgsMapToolIdentify.__init__(self, iface.mapCanvas())
 
         self.timerMapTips = QTimer(self.canvas())
         self.timerMapTips.timeout.connect(self.showMapTip)
+        self.timerMapTips.setSingleShot(True)
 
         self.restrictionList = []
         self.restrictionLayers = None
@@ -153,7 +64,8 @@ class GeometryInfoMapTool(MapToolMixin, RestrictionTypeUtilsMixin, QgsMapToolIde
             self.canvas().mouseLastXY()
         )
         featureList = self.getFeatureList(self.restrictionList)
-        self.setupFeatureMenu(featureList)
+        if len(featureList) > 0:
+            self.setupFeatureMenu(featureList)
 
     def canvasMoveEvent(self, event):  # pylint: disable=unused-argument
         """
@@ -161,28 +73,22 @@ class GeometryInfoMapTool(MapToolMixin, RestrictionTypeUtilsMixin, QgsMapToolIde
         some time the tooltip will be shown with showMapTip()
         """
 
-        if self.canvas().underMouse():  # Only if mouse is over the map
-            QToolTip.hideText()
-            self.timerMapTips.start(700)  # time in milliseconds
+        QToolTip.hideText()
+        self.timerMapTips.start(700)  # time in milliseconds
 
     def showMapTip(self):
         """Show a tooltip with the features under the cursor"""
 
-        self.timerMapTips.stop()
-        if self.canvas().underMouse():
+        restrictionList = self.getRestrictionsUnderPoint(self.canvas().mouseLastXY())
+        featureList = self.getFeatureList(restrictionList)
 
-            restrictionList = self.getRestrictionsUnderPoint(
-                self.canvas().mouseLastXY()
-            )
-            featureList = self.getFeatureList(restrictionList)
+        text = "\n".join(featureList)
 
-            text = "\n".join(featureList)
-
-            QToolTip.showText(
-                self.canvas().mapToGlobal(self.canvas().mouseLastXY()),
-                text,
-                self.canvas(),
-            )
+        QToolTip.showText(
+            self.canvas().mapToGlobal(self.canvas().mouseLastXY()),
+            text,
+            self.canvas(),
+        )
 
     @pyqtSlot(QAction)
     def onRestrictionSelectMenuClicked(self, action):
@@ -239,12 +145,11 @@ class GeometryInfoMapTool(MapToolMixin, RestrictionTypeUtilsMixin, QgsMapToolIde
 
         If no feature is close to the given coordinate, we return None.
         """
-        mapPt = self.transformCoordinates(pos)
+        mapPt = self.toMapCoordinates(pos)
         TOMsMessageLog.logMessage(
             "In getRestrictionsUnderPoint:  mapPt ********: " + mapPt.asWkt(),
             level=Qgis.Info,
         )
-        # tolerance = self.calcTolerance(pos)
         tolerance = 0.5
         searchRectA = QgsRectangle(
             mapPt.x() - tolerance,
@@ -293,7 +198,17 @@ class GeometryInfoMapTool(MapToolMixin, RestrictionTypeUtilsMixin, QgsMapToolIde
             request = QgsFeatureRequest()
             request.setFilterRect(searchRect)
             request.setFlags(QgsFeatureRequest.ExactIntersect)
-            self.currLayer = self.getRestrictionsLayer(layerDetails)
+
+            restrictionsLayers = QgsProject.instance().mapLayersByName(
+                "RestrictionLayers"
+            )[0]
+            currRestrictionsTableName = layerDetails[
+                restrictionsLayers.fields().indexFromName("RestrictionLayerName")
+            ]
+
+            self.currLayer = QgsProject.instance().mapLayersByName(
+                currRestrictionsTableName
+            )[0]
 
             context.appendScopes(
                 QgsExpressionContextUtils.globalProjectLayerScopes(self.currLayer)
@@ -360,7 +275,7 @@ class GeometryInfoMapTool(MapToolMixin, RestrictionTypeUtilsMixin, QgsMapToolIde
                     if feature[fieldIdx]:
                         title = "Sign: {RestrictionDescription} [{GeometryID}]".format(
                             RestrictionDescription=str(
-                                self.getLookupDescription(signTypes, feature[fieldIdx])
+                                getLookupDescription(signTypes, feature[fieldIdx])
                             ),
                             GeometryID=currGeometryID,
                         )
@@ -370,7 +285,7 @@ class GeometryInfoMapTool(MapToolMixin, RestrictionTypeUtilsMixin, QgsMapToolIde
                     continue
                 title = "{RestrictionDescription} [{GeometryID}]".format(
                     RestrictionDescription=str(
-                        self.getLookupDescription(
+                        getLookupDescription(
                             restrictionPolygonTypes
                             if layerType == RestrictionLayers.RESTRICTION_POLYGONS.value
                             else restrictionTypes,
@@ -398,7 +313,7 @@ class GeometryInfoMapTool(MapToolMixin, RestrictionTypeUtilsMixin, QgsMapToolIde
             restrictionSelectMenu.addAction(action)
             restrictionSelectMenu.triggered.connect(self.onRestrictionSelectMenuClicked)
 
-        TOMsMessageLog.logMessage("In getFeatureDetails: showing menu", level=Qgis.Info)
+        TOMsMessageLog.logMessage("In setupFeatureMenu: showing menu", level=Qgis.Info)
 
         clickedAction = restrictionSelectMenu.exec(
             self.canvas().mapToGlobal(self.canvas().mouseLastXY())
@@ -409,7 +324,7 @@ class GeometryInfoMapTool(MapToolMixin, RestrictionTypeUtilsMixin, QgsMapToolIde
         )
 
 
-class CreateRestrictionTool(RestrictionTypeUtilsMixin, QgsMapToolCapture):
+class CreateRestrictionTool(QgsMapToolCapture):
     # helpful link - http://apprize.info/python/qgis/7.html ??
     def __init__(self, proposalsManager):
 
@@ -419,7 +334,6 @@ class CreateRestrictionTool(RestrictionTypeUtilsMixin, QgsMapToolCapture):
             iface.cadDockWidget(),
             QgsMapToolCapture.CaptureNone,
         )
-        RestrictionTypeUtilsMixin.__init__(self)
 
         # self.dialog = dialog
         self.proposalsManager = proposalsManager
@@ -454,7 +368,7 @@ class CreateRestrictionTool(RestrictionTypeUtilsMixin, QgsMapToolCapture):
         advancedDigitizingPanel.enable()
         if not advancedDigitizingPanel.enableAction().isChecked():
             advancedDigitizingPanel.enableAction().trigger()
-        self.setupPanelTabs(advancedDigitizingPanel)
+        setupPanelTabs(advancedDigitizingPanel)
 
         self.layer().startEditing()
         traceLayers = [QgsProject.instance().mapLayersByName("RoadCasement")[0]]
@@ -685,16 +599,102 @@ class CreateRestrictionTool(RestrictionTypeUtilsMixin, QgsMapToolCapture):
                 newRestrictionID = str(uuid.uuid4())
                 feature["RestrictionID"] = newRestrictionID
 
-                dialog = iface.getFeatureForm(self.layer(), feature)
-
-                self.setupRestrictionDialog(
-                    dialog,
-                    self.layer(),
-                    feature,
-                    TOMsTransaction(self.proposalsManager),
-                )  # connects signals, etc
-
+                dialog = RestrictionDialogWrapper(self.layer(), feature)
                 dialog.show()
+
+    def setDefaultRestrictionDetails(self, currRestriction, currRestrictionLayer):
+        # FIXME: tellement de commentaire, au final pas de date settée ?
+        TOMsMessageLog.logMessage("In setDefaultRestrictionDetails: ", level=Qgis.Info)
+
+        GenerateGeometryUtils.setRoadName(currRestriction)
+        if currRestrictionLayer.geometryType() == 1:  # Line or Bay
+            GenerateGeometryUtils.setAzimuthToRoadCentreLine(currRestriction)
+            # currRestriction.setAttribute("RestrictionLength", currRestriction.geometry().length())
+
+        currentCPZ, cpzWaitingTimeID = GenerateGeometryUtils.getCurrentCPZDetails(
+            currRestriction
+        )
+        currentED, edWaitingTimeID = GenerateGeometryUtils.getCurrentEventDayDetails(
+            currRestriction
+        )
+
+        if currRestrictionLayer.name() != "Signs":
+            currRestriction.setAttribute("CPZ", currentCPZ)
+            currRestriction.setAttribute("MatchDayEventDayZone", currentED)
+
+        # TODO: get the last used values ... look at field ...
+
+        if currRestrictionLayer.name() == "Lines":
+            # currRestriction.setAttribute("RestrictionTypeID", 224)  # 10 = SYL (Lines)
+            currRestriction.setAttribute(
+                "RestrictionTypeID", QgsSettings().value("Lines/RestrictionTypeID", 224)
+            )
+            # currRestriction.setAttribute("GeomShapeID", 10)   # 10 = Parallel Line
+            currRestriction.setAttribute(
+                "GeomShapeID", QgsSettings().value("Lines/GeomShapeID", 10)
+            )
+            currRestriction.setAttribute("NoWaitingTimeID", cpzWaitingTimeID)
+            currRestriction.setAttribute("MatchDayTimePeriodID", edWaitingTimeID)
+            # currRestriction.setAttribute("Lines_DateTime", currDate)
+
+        elif currRestrictionLayer.name() == "Bays":
+            # currRestriction.setAttribute("RestrictionTypeID", 101)  # 28 = Permit Holders Bays (Bays)
+            currRestriction.setAttribute(
+                "RestrictionTypeID",
+                QgsSettings().value("Bays/RestrictionTypeID", 101),
+            )  # 28 = Permit Holders Bays (Bays)
+            currRestriction.setAttribute(
+                "GeomShapeID",
+                QgsSettings().value("Bays/GeomShapeID", 21),
+            )  # 21 = Parallel Bay (Polygon)
+            # currRestriction.setAttribute("GeomShapeID", 21)   # 21 = Parallel Bay (Polygon)
+            currRestriction.setAttribute("NrBays", -1)
+
+            currRestriction.setAttribute("TimePeriodID", cpzWaitingTimeID)
+            currRestriction.setAttribute("MatchDayTimePeriodID", edWaitingTimeID)
+
+            (
+                currentPTA,
+                ptaMaxStayID,
+                ptaNoReturnID,
+            ) = GenerateGeometryUtils.getCurrentPTADetails(currRestriction)
+
+            currRestriction.setAttribute("MaxStayID", ptaMaxStayID)
+            currRestriction.setAttribute("NoReturnID", ptaNoReturnID)
+            currRestriction.setAttribute("ParkingTariffArea", currentPTA)
+
+            try:
+                payParkingAreasLayer = QgsProject.instance().mapLayersByName(
+                    "PayParkingAreas"
+                )[0]
+                currPayParkingArea = GenerateGeometryUtils.getPolygonForRestriction(
+                    currRestriction, payParkingAreasLayer
+                )
+                currRestriction.setAttribute(
+                    "PayParkingAreaID", currPayParkingArea.attribute("Code")
+                )
+            except Exception as e:
+                TOMsMessageLog.logMessage(
+                    "In setDefaultRestrictionDetails:payParkingArea: error: {}".format(
+                        e
+                    ),
+                    level=Qgis.Info,
+                )
+
+        elif currRestrictionLayer.name() == "Signs":
+            # currRestriction.setAttribute("SignType_1", 28)  # 28 = Permit Holders Only (Signs)
+            currRestriction.setAttribute(
+                "SignType_1",
+                QgsSettings().value("Signs/SignType_1", 28),
+            )
+
+        elif currRestrictionLayer.name() == "RestrictionPolygons":
+            # currRestriction.setAttribute("RestrictionTypeID", 4)  # 28 = Residential mews area (RestrictionPolygons)
+            currRestriction.setAttribute(
+                "RestrictionTypeID",
+                QgsSettings().value("RestrictionPolygons/RestrictionTypeID", 4),
+            )
+            currRestriction.setAttribute("MatchDayTimePeriodID", edWaitingTimeID)
 
 
 def checkSplitGeometries(currentProposal):

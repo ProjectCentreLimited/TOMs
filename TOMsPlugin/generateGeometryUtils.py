@@ -29,6 +29,7 @@ from qgis.PyQt.QtCore import QObject
 from qgis.utils import iface
 
 from .core.tomsMessageLog import TOMsMessageLog
+from .utils import getLookupDescription
 
 
 class GenerateGeometryUtils(QObject):
@@ -779,7 +780,7 @@ class GenerateGeometryUtils(QObject):
             additionalConditionTypesLayer = QgsProject.instance().mapLayersByName(
                 "AdditionalConditionTypes"
             )[0]
-            additionalConditionDesc = GenerateGeometryUtils.getLookupDescription(
+            additionalConditionDesc = getLookupDescription(
                 additionalConditionTypesLayer, additionalConditionID
             )
             if waitDesc:
@@ -921,7 +922,7 @@ class GenerateGeometryUtils(QObject):
             additionalConditionTypesLayer = QgsProject.instance().mapLayersByName(
                 "AdditionalConditionTypes"
             )[0]
-            additionalConditionDesc = GenerateGeometryUtils.getLookupDescription(
+            additionalConditionDesc = getLookupDescription(
                 additionalConditionTypesLayer, additionalConditionID
             )
             if timePeriodDesc:
@@ -935,22 +936,6 @@ class GenerateGeometryUtils(QObject):
         )
 
         return maxStayDesc, noReturnDesc, timePeriodDesc
-
-    @staticmethod
-    def getLookupDescription(lookupLayer, code):
-
-        # TOMsMessageLog.logMessage("In getLookupDescription", level=TOMsMessageLog.DEBUG)
-
-        if code:
-            query = '"Code" = ' + str(code)
-            request = QgsFeatureRequest().setFilterExpression(query)
-
-            # TOMsMessageLog.logMessage("In getLookupDescription. queryStatus: " + str(query), level=TOMsMessageLog.DEBUG)
-
-            for row in lookupLayer.getFeatures(request):
-                return row.attribute("Description")  # make assumption that only one row
-
-        return None
 
     @staticmethod
     def getLookupLabelText(lookupLayer, code):

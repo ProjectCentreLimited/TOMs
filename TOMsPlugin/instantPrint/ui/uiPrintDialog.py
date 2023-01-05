@@ -13,7 +13,7 @@ from qgis.gui import QgsScaleComboBox
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 
 
-class UiInstantPrintDialog(object):
+class UiInstantPrintDialog:
     def setupUi(self, instantPrintDialog):
         instantPrintDialog.setObjectName("InstantPrintDialog")
         instantPrintDialog.resize(357, 157)

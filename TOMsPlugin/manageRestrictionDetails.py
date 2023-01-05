@@ -26,14 +26,20 @@ from .mapTools import (
 
 # Initialize Qt resources from file resources.py
 from .resources import *  # pylint: disable=wildcard-import, unused-wildcard-import
-from .restrictionTypeUtilsClass import RestrictionTypeUtilsMixin
+from .restrictionDialog import RestrictionDialogWrapper
+from .utils import (
+    addRestrictionToProposal,
+    deleteRestrictionInProposal,
+    getRestrictionLayerTableID,
+    restrictionInProposal,
+    setupPanelTabs,
+)
 
 
-class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
+class ManageRestrictionDetails:
     def __init__(self, tomsToolbar, proposalsManager):
 
         TOMsMessageLog.logMessage("In manageRestrictionDetails::init", level=Qgis.Info)
-        RestrictionTypeUtilsMixin.__init__(self)
 
         self.proposalsManager = proposalsManager
         self.tomsToolbar = tomsToolbar
@@ -186,9 +192,6 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
         # set up a Transaction object
         self.restrictionTransaction = restrictionTransaction
 
-    def unCheckNodeTool(self):
-        self.actionEditRestriction.setChecked(False)
-
     def disableTOMsToolbarItems(self):
 
         TOMsMessageLog.logMessage("In disableTOMsToolbarItems", level=Qgis.Info)
@@ -213,8 +216,7 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
 
         currRestrictionLayer = iface.activeLayer()
 
-        if currRestrictionLayer:
-
+        if currRestrictionLayer and currRestrictionLayer.selectedFeatureCount() > 0:
             TOMsMessageLog.logMessage(
                 "In doRestrictionDetails. currLayer: "
                 + str(
@@ -225,44 +227,23 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
                 level=Qgis.Info,
             )
 
-            if currRestrictionLayer.selectedFeatureCount() > 0:
-
-                if currProposalID == 0:
-                    # Ensure that no updates can occur for Proposal = 0
-                    self.restrictionTransaction.rollBackTransactionGroup()  # stop any editing
-                else:
-                    self.restrictionTransaction.startTransactionGroup()  # start editing
-
-                selectedRestrictions = currRestrictionLayer.selectedFeatures()
-                for currRestriction in selectedRestrictions:
-                    # self.restrictionForm = BayRestrictionForm(currRestrictionLayer, currRestriction)
-                    # self.restrictionForm.show()
-
-                    TOMsMessageLog.logMessage(
-                        "In restrictionFormOpen. currRestrictionLayer: "
-                        + str(currRestrictionLayer.name()),
-                        level=Qgis.Info,
-                    )
-
-                    dialog = iface.getFeatureForm(currRestrictionLayer, currRestriction)
-
-                    self.setupRestrictionDialog(
-                        dialog,
-                        currRestrictionLayer,
-                        currRestriction,
-                        self.restrictionTransaction,
-                    )  # connects signals
-
-                    dialog.show()
-
+            if currProposalID == 0:
+                # Ensure that no updates can occur for Proposal = 0
+                self.restrictionTransaction.rollBackTransactionGroup()  # stop any editing
             else:
+                self.restrictionTransaction.startTransactionGroup()  # start editing
 
-                QMessageBox.information(
-                    iface.mainWindow(),
-                    "Information",
-                    "Select restriction first and then choose information button",
-                    QMessageBox.Ok,
+            selectedRestrictions = currRestrictionLayer.selectedFeatures()
+            for currRestriction in selectedRestrictions:
+
+                TOMsMessageLog.logMessage(
+                    "In restrictionFormOpen. currRestrictionLayer: "
+                    + str(currRestrictionLayer.name()),
+                    level=Qgis.Info,
                 )
+
+                dialog = RestrictionDialogWrapper(currRestrictionLayer, currRestriction)
+                dialog.show()
 
         else:
 
@@ -405,11 +386,11 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
 
         currProposalID = self.proposalsManager.currentProposal()
 
-        currRestrictionLayerID = self.getRestrictionLayerTableID(currRestrictionLayer)
+        currRestrictionLayerID = getRestrictionLayerTableID(currRestrictionLayer)
 
         idxRestrictionID = currRestriction.fields().indexFromName("RestrictionID")
 
-        if self.restrictionInProposal(
+        if restrictionInProposal(
             currRestriction[idxRestrictionID], currRestrictionLayerID, currProposalID
         ):
             # check to see whether or not the restriction has an OpenDate. If so, this should not be deleted.
@@ -432,7 +413,7 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
             )
 
             # Delete from RestrictionsInProposals
-            if not self.deleteRestrictionInProposal(
+            if not deleteRestrictionInProposal(
                 currRestriction[idxRestrictionID],
                 currRestrictionLayerID,
                 currProposalID,
@@ -455,7 +436,7 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
                 "In onRemoveRestriction. Closing existing restriction.", level=Qgis.Info
             )
 
-            if not self.addRestrictionToProposal(
+            if not addRestrictionToProposal(
                 currRestriction[idxRestrictionID],
                 currRestrictionLayerID,
                 currProposalID,
@@ -509,7 +490,7 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
                 iface.actionVertexToolActiveLayer().toggled.connect(
                     lambda: self.actionEditRestriction.setChecked(False)
                 )
-                self.setupPanelTabs(iface.cadDockWidget())
+                setupPanelTabs(iface.cadDockWidget())
                 iface.cadDockWidget().enable()
 
             else:
@@ -532,7 +513,7 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
             if self.restrictionTransaction.currTransactionGroup.modified():
                 checkEditedGeometries(self.proposalsManager.currentProposal())
             self.restrictionTransaction.commitTransactionGroup()  # to remove edit mode
-            self.setupPanelTabs(
+            setupPanelTabs(
                 iface.mainWindow().findChild(QDockWidget, "ProposalPanelDockWidgetBase")
             )
 
@@ -575,7 +556,7 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
                 currRestrictionLayer.editBuffer().featureAdded.connect(
                     self.stopSplitting
                 )
-                self.setupPanelTabs(iface.cadDockWidget())
+                setupPanelTabs(iface.cadDockWidget())
                 iface.cadDockWidget().enable()
 
             else:
@@ -594,7 +575,7 @@ class ManageRestrictionDetails(RestrictionTypeUtilsMixin):
             if self.restrictionTransaction.currTransactionGroup.modified():
                 checkSplitGeometries(self.proposalsManager.currentProposal())
             self.restrictionTransaction.commitTransactionGroup()  # to remove edit mode
-            self.setupPanelTabs(
+            setupPanelTabs(
                 iface.mainWindow().findChild(QDockWidget, "ProposalPanelDockWidgetBase")
             )
 

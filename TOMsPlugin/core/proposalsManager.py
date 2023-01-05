@@ -18,13 +18,13 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QDate, QObject, pyqtSignal
 from qgis.utils import iface
 
-from ..proposalTypeUtilsClass import ProposalTypeUtilsMixin
-from ..restrictionTypeUtilsClass import RestrictionTypeUtilsMixin, TOMsLayers
+from ..restrictionTypeUtilsClass import TOMsLayers
+from ..utils import getRestrictionLayersList
 from .tomsMessageLog import TOMsMessageLog
 from .tomsProposal import TOMsProposal
 
 
-class TOMsProposalsManager(RestrictionTypeUtilsMixin, ProposalTypeUtilsMixin, QObject):
+class TOMsProposalsManager(QObject):
     """
     Manages what is currently shown to the user.
 
@@ -46,10 +46,8 @@ class TOMsProposalsManager(RestrictionTypeUtilsMixin, ProposalTypeUtilsMixin, QO
     def __init__(self):  # pylint: disable=super-init-not-called
 
         QObject.__init__(self)
-        # ProposalTypeUtilsMixin.__init__(self)
 
         self.tableNames = TOMsLayers()
-        # self.tableNames.TOMsLayersSet.connect(self.setRestrictionLayers)
 
         self.__date = QDate.currentDate()  # pylint: disable=invalid-name
         self.currProposalFeature = None
@@ -137,7 +135,7 @@ class TOMsProposalsManager(RestrictionTypeUtilsMixin, ProposalTypeUtilsMixin, QO
             + f"AND ((\"CloseDate\" \u003E to_date('{dateString}', 'dd-MM-yyyy')  OR \"CloseDate\" IS NULL)"
         )
 
-        for layerID, layerName in self.getRestrictionLayersList():
+        for layerID, layerName in getRestrictionLayersList(self.tableNames):
             TOMsMessageLog.logMessage(
                 f"updateMapCanvas: Considering layer: {layerName}",
                 level=TOMsMessageLog.DEBUG,
@@ -236,7 +234,7 @@ class TOMsProposalsManager(RestrictionTypeUtilsMixin, ProposalTypeUtilsMixin, QO
             "Entering clearRestrictionFilters ... ", level=Qgis.Info
         )
 
-        for (_, layerName) in self.getRestrictionLayersList():
+        for (_, layerName) in getRestrictionLayersList(self.tableNames):
             TOMsMessageLog.logMessage(
                 f"Clearing filter for layer: {layerName}", level=Qgis.Info
             )
@@ -293,50 +291,6 @@ class TOMsProposalsManager(RestrictionTypeUtilsMixin, ProposalTypeUtilsMixin, QO
                     return False
 
         return True
-
-    #  def getCurrentRestrictionsForLayerAtDate(
-    #      self, layerID, dateString=None
-    #  ):  # TODO: possibly better with Proposal
-    #
-    #      if not dateString:
-    #          dateString = self.date()
-    #
-    #      dateString = self.__date.toString("yyyy-MM-dd")
-    #      dateChoosenFormatted = "'{dateString}'".format(dateString=dateString)
-    #
-    #      filterString = ('"OpenDate" \u003C\u003D to_date({dateChoosenFormatted}) AND '
-    #                     + '(("CloseDate" \u003E to_date({dateChoosenFormatted})  OR "CloseDate" IS NULL))').format(
-    #          dateChoosenFormatted=dateChoosenFormatted
-    #      )
-    #
-    #      thisLayer = self.getRestrictionLayerFromID(layerID)
-    #
-    #      request = QgsFeatureRequest().setFilterExpression(filterString)
-    #
-    #      TOMsMessageLog.logMessage(
-    #          "In ProposalsManager:getCurrentRestrictionsForLayerAtDate. Layer: "
-    #          + thisLayer.name()
-    #          + " Filter: "
-    #          + filterString,
-    #          level=Qgis.Info,
-    #      )
-    #      restrictionList = []
-    #      for currentRestrictionDetails in thisLayer.getFeatures(request):
-    #          TOMsMessageLog.logMessage(
-    #              "In ProposalsManager:getCurrentRestrictionsForLayerAtDate. Layer: "
-    #              + thisLayer.name()
-    #              + " restrictionID: "
-    #              + str(currentRestrictionDetails["RestrictionID"]),
-    #              level=Qgis.Info,
-    #          )
-    #          currRestriction = ProposalElementFactory.getProposalElement(
-    #              self, layerID, thisLayer, currentRestrictionDetails["RestrictionID"]
-    #          )
-    #          restrictionList.append(
-    #              [currentRestrictionDetails["RestrictionID"], currRestriction]
-    #          )
-    #
-    #      return restrictionList
 
     def getProposalsListWithStatus(self, proposalStatus=None):
 

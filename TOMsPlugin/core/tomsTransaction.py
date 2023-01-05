@@ -160,8 +160,8 @@ class TOMsTransaction(QObject):
             "In TOMsTransaction:commitTransactionGroup", level=Qgis.Info
         )
 
-        layer_list = list(self.currTransactionGroup.layers())
-        if len(layer_list) == 0:
+        layerList = list(self.currTransactionGroup.layers())
+        if len(layerList) == 0:
             return True  # nothing happens because edition was never activated
 
         if not self.currTransactionGroup:
@@ -178,7 +178,7 @@ class TOMsTransaction(QObject):
             self.rollBackTransactionGroup()
             return False
 
-        layer = layer_list[0]
+        layer = layerList[0]
         if not layer.isEditable():
             return True  # nothing happens because edition is not activated
 
@@ -200,6 +200,7 @@ class TOMsTransaction(QObject):
 
         self.errorOccurred = False
         self.proposalsManager.updateMapCanvas()
+        return True
 
     def layersInTransaction(self):
         return self.setTransactionGroup

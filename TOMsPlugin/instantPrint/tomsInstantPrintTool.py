@@ -37,6 +37,7 @@ from .ui.printListDialog import PrintListDialog as printListDialogUI
 
 class TOMsInstantPrintTool(InstantPrintTool):
     def __init__(self, proposalsManager):
+        super().__init__()
 
         self.proposalsManager = proposalsManager
         self.tableNames = self.proposalsManager.tableNames
@@ -248,8 +249,6 @@ class TOMsInstantPrintTool(InstantPrintTool):
         self.proposalForPrintingStatusText = "PROPOSED"
         self.proposalPrintTypeDetails = "Print Date"
         self.openDateForPrintProposal = self.proposalsManager.date()
-
-        # self.Proposals = self.tableNames.setLayer("Proposals")
 
         if currPrintLayout.atlas():
 
@@ -600,7 +599,6 @@ class TOMsInstantPrintTool(InstantPrintTool):
         # set the dialog (somehow)
 
         tilesToPrint = []
-        # idxMapTileId = self.tableNames.setLayer("MapGrid").fields().indexFromName("id")
 
         # tileSet = set()
         for currTileNr, currTile in tileDictionary.items():
@@ -638,6 +636,7 @@ class TOMsInstantPrintTool(InstantPrintTool):
 
 class PrintListDialog(printListDialogUI, QDialog):
     def __init__(self, initValuesDict, parent=None):
+        printListDialogUI.__init__(self)
         QDialog.__init__(self, parent)
 
         # initValues is set of features (in this case MapTile features); idxValue is the index to the set
