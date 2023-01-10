@@ -20,308 +20,23 @@ from qgis.core import (
     QgsFeatureRequest,
     QgsGeometry,
     QgsProject,
-    QgsRectangle,
     QgsSettings,
     QgsTracer,
+    QgsUnitTypes,
     QgsVectorLayer,
     QgsWkbTypes,
 )
 from qgis.gui import QgsMapToolCapture, QgsMapToolIdentify
-from qgis.PyQt.QtCore import Qt, QTimer, pyqtSlot
-from qgis.PyQt.QtWidgets import (
-    QAction,
-    QMenu,
-    QMessageBox,
-    QToolTip,
-)
+from qgis.PyQt.QtCore import Qt, QTimer
+from qgis.PyQt.QtWidgets import QMessageBox, QToolTip
 from qgis.utils import iface
 
-from .constants import RestrictionAction, RestrictionLayers
+from .constants import RestrictionAction
 from .core.tomsMessageLog import TOMsMessageLog
 from .generateGeometryUtils import GenerateGeometryUtils
 from .restrictionDialog import RestrictionDialogWrapper
 from .restrictionTypeUtilsClass import TOMsLabelLayerNames
-from .utils import getLookupDescription, setupPanelTabs
-
-
-class GeometryInfoMapTool(QgsMapToolIdentify):
-    def __init__(self):
-        QgsMapToolIdentify.__init__(self, iface.mapCanvas())
-
-        self.timerMapTips = QTimer(self.canvas())
-        self.timerMapTips.timeout.connect(self.showMapTip)
-        self.timerMapTips.setSingleShot(True)
-
-        self.restrictionList = []
-        self.restrictionLayers = None
-        self.currLayer = None
-
-    def canvasReleaseEvent(self, event):  # pylint: disable=unused-argument
-        # Return point under cursor
-        TOMsMessageLog.logMessage(("In Info - canvasReleaseEvent."), level=Qgis.Info)
-
-        self.restrictionList = self.getRestrictionsUnderPoint(
-            self.canvas().mouseLastXY()
-        )
-        featureList = self.getFeatureList(self.restrictionList)
-        if len(featureList) > 0:
-            self.setupFeatureMenu(featureList)
-
-    def canvasMoveEvent(self, event):  # pylint: disable=unused-argument
-        """
-        Start the tooltip timer when moving, so that if the mouse stops for
-        some time the tooltip will be shown with showMapTip()
-        """
-
-        QToolTip.hideText()
-        self.timerMapTips.start(700)  # time in milliseconds
-
-    def showMapTip(self):
-        """Show a tooltip with the features under the cursor"""
-
-        restrictionList = self.getRestrictionsUnderPoint(self.canvas().mouseLastXY())
-        featureList = self.getFeatureList(restrictionList)
-
-        text = "\n".join(featureList)
-
-        QToolTip.showText(
-            self.canvas().mapToGlobal(self.canvas().mouseLastXY()),
-            text,
-            self.canvas(),
-        )
-
-    @pyqtSlot(QAction)
-    def onRestrictionSelectMenuClicked(self, action):
-        TOMsMessageLog.logMessage(
-            "In onRestrictionSelectMenuClicked. Action: " + action.text(),
-            level=Qgis.Info,
-        )
-
-        selectedGeometryID = action.text()[
-            action.text().find("[") + 1 : action.text().find("]")
-        ]
-
-        TOMsMessageLog.logMessage(
-            "In onRestrictionSelectMenuClicked. geomID: " + selectedGeometryID,
-            level=Qgis.Info,
-        )
-
-        # TODO: Really should rollback (or save) any current transactions
-
-        self.doSelectFeature(selectedGeometryID)
-
-    def doSelectFeature(self, selectedGeometryID):
-
-        TOMsMessageLog.logMessage("In doSelectFeature ... ", level=Qgis.Info)
-
-        for feature, _, layer in self.restrictionList:
-
-            currGeometryID = str(feature.attribute("GeometryID"))
-            if currGeometryID == selectedGeometryID:
-                # select the feature ...
-                if iface.activeLayer():
-                    iface.activeLayer().removeSelection()
-                iface.setActiveLayer(layer)
-                layer.selectByIds([feature.id()])
-                TOMsMessageLog.logMessage(
-                    "In Info - canvasReleaseEvent. Feature selected from layer: "
-                    + layer.name()
-                    + " id: "
-                    + str(currGeometryID),
-                    level=Qgis.Info,
-                )
-                break
-
-    def getRestrictionsUnderPoint(self, pos):
-        # http://www.lutraconsulting.co.uk/blog/2014/10/17/getting-started-writing-qgis-python-plugins/
-        # generates "closest feature" function
-
-        """Find the feature close to the given position.
-
-        'pos' is the position to check, in canvas coordinates.
-
-        if 'excludeFeature' is specified, we ignore this feature when
-        finding the clicked-on feature.
-
-        If no feature is close to the given coordinate, we return None.
-        """
-        mapPt = self.toMapCoordinates(pos)
-        TOMsMessageLog.logMessage(
-            "In getRestrictionsUnderPoint:  mapPt ********: " + mapPt.asWkt(),
-            level=Qgis.Info,
-        )
-        tolerance = 0.5
-        searchRectA = QgsRectangle(
-            mapPt.x() - tolerance,
-            mapPt.y() - tolerance,
-            mapPt.x() + tolerance,
-            mapPt.y() + tolerance,
-        )
-
-        self.restrictionLayers = QgsProject.instance().mapLayersByName(
-            "RestrictionLayers"
-        )[0]
-
-        # need to loop through the layers and choose closest to click point
-
-        restrictionList = []
-
-        context = QgsExpressionContext()
-
-        for layerDetails in self.restrictionLayers.getFeatures():
-
-            if (
-                layerDetails.attribute("Code") >= 6
-            ):  # CPZs, PTAs  - TODO: Need to improve
-                allowZoneEditing = QgsExpressionContextUtils.projectScope(
-                    QgsProject.instance()
-                ).variable("AllowZoneEditing")
-                if allowZoneEditing != "True":
-                    continue
-                TOMsMessageLog.logMessage(
-                    "In getRestrictionsUnderPoint: Zone editing enabled: ",
-                    level=Qgis.Info,
-                )
-
-            if layerDetails.attribute("Code") == RestrictionLayers.BAYS.value:  # Bays
-                tolerance = 2.0
-            else:
-                tolerance = 0.5
-
-            searchRect = QgsRectangle(
-                mapPt.x() - tolerance,
-                mapPt.y() - tolerance,
-                mapPt.x() + tolerance,
-                mapPt.y() + tolerance,
-            )
-
-            request = QgsFeatureRequest()
-            request.setFilterRect(searchRect)
-            request.setFlags(QgsFeatureRequest.ExactIntersect)
-
-            restrictionsLayers = QgsProject.instance().mapLayersByName(
-                "RestrictionLayers"
-            )[0]
-            currRestrictionsTableName = layerDetails[
-                restrictionsLayers.fields().indexFromName("RestrictionLayerName")
-            ]
-
-            self.currLayer = QgsProject.instance().mapLayersByName(
-                currRestrictionsTableName
-            )[0]
-
-            context.appendScopes(
-                QgsExpressionContextUtils.globalProjectLayerScopes(self.currLayer)
-            )
-
-            # Loop through all features in the layer to find the closest feature
-            for feat in self.currLayer.getFeatures(request):
-
-                if layerDetails.attribute("Code") in [
-                    RestrictionLayers.BAYS.value,
-                    RestrictionLayers.LINES.value,
-                ]:
-                    context.setFeature(feat)
-                    expression1 = QgsExpression("generateDisplayGeometry()")
-
-                    shapeGeom = expression1.evaluate(context)
-                    TOMsMessageLog.logMessage(
-                        "In findNearestFeatureAtC:  shapeGeom ********: "
-                        + shapeGeom.asWkt(),
-                        level=Qgis.Info,
-                    )
-                    if shapeGeom.intersects(searchRectA):
-                        # Add any features that are found should be added to a list
-                        restrictionList.append(
-                            (feat, layerDetails.attribute("Code"), self.currLayer)
-                        )
-                else:
-                    restrictionList.append(
-                        (feat, layerDetails.attribute("Code"), self.currLayer)
-                    )
-
-        TOMsMessageLog.logMessage(
-            "In findNearestFeatureAt: nrFeatures: " + str(len(restrictionList)),
-            level=Qgis.Info,
-        )
-
-        return restrictionList
-
-    def getFeatureList(self, restrictionList):
-        restrictionTypes = QgsProject.instance().mapLayersByName("BayLineTypes")[0]
-        signTypes = QgsProject.instance().mapLayersByName("SignTypes")[0]
-        restrictionPolygonTypes = QgsProject.instance().mapLayersByName(
-            "RestrictionPolygonTypes"
-        )[0]
-
-        # Creates a formatted list of the restrictions
-        TOMsMessageLog.logMessage(
-            "In getFeatureList: nrFeatures: " + str(len(restrictionList)),
-            level=Qgis.Info,
-        )
-
-        featureList = []
-        for feature, layerType, layer in restrictionList:
-
-            currGeometryID = str(feature.attribute("GeometryID"))
-            if layerType == RestrictionLayers.SIGNS.value:
-                # Need to get each of the signs ...
-                for i in range(1, 10):
-                    fieldIdx = layer.fields().indexFromName(
-                        "SignType_{counter}".format(counter=i)
-                    )
-                    if fieldIdx == -1:
-                        break
-                    if feature[fieldIdx]:
-                        title = "Sign: {RestrictionDescription} [{GeometryID}]".format(
-                            RestrictionDescription=str(
-                                getLookupDescription(signTypes, feature[fieldIdx])
-                            ),
-                            GeometryID=currGeometryID,
-                        )
-                        featureList.append(title)
-            else:
-                if "RestrictionTypeID" not in [f.name() for f in feature.fields()]:
-                    continue
-                title = "{RestrictionDescription} [{GeometryID}]".format(
-                    RestrictionDescription=str(
-                        getLookupDescription(
-                            restrictionPolygonTypes
-                            if layerType == RestrictionLayers.RESTRICTION_POLYGONS.value
-                            else restrictionTypes,
-                            feature.attribute("RestrictionTypeID"),
-                        )
-                    ),
-                    GeometryID=currGeometryID,
-                )
-                featureList.append(title)
-
-        return featureList
-
-    def setupFeatureMenu(self, featureTitleList):
-        """Creates the context menu and returns the selected feature and layer"""
-        TOMsMessageLog.logMessage(
-            "In getFeatureDetails: nrFeatures: " + str(len(featureTitleList)),
-            level=Qgis.Info,
-        )
-
-        restrictionSelectMenu = QMenu(iface.mapCanvas())
-        restrictionSelectMenu.clear()
-
-        for title in featureTitleList:
-            action = QAction(title, restrictionSelectMenu)
-            restrictionSelectMenu.addAction(action)
-            restrictionSelectMenu.triggered.connect(self.onRestrictionSelectMenuClicked)
-
-        TOMsMessageLog.logMessage("In setupFeatureMenu: showing menu", level=Qgis.Info)
-
-        clickedAction = restrictionSelectMenu.exec(
-            self.canvas().mapToGlobal(self.canvas().mouseLastXY())
-        )
-        TOMsMessageLog.logMessage(
-            f"In getFeatureDetails:clicked_action: {clickedAction}",
-            level=Qgis.Info,
-        )
+from .utils import setupPanelTabs
 
 
 class CreateRestrictionTool(QgsMapToolCapture):
@@ -695,6 +410,144 @@ class CreateRestrictionTool(QgsMapToolCapture):
                 QgsSettings().value("RestrictionPolygons/RestrictionTypeID", 4),
             )
             currRestriction.setAttribute("MatchDayTimePeriodID", edWaitingTimeID)
+
+
+class SelectRestrictionTool(QgsMapToolIdentify):
+    """
+    This tool is needed because we only need to select a restriction but with
+    a pop-up menu like QGIS info tool creates.
+    Also, we need to take into account the symbol and not the real feature
+    geometry for bays and restriction lines, for searching features around the
+    mouse pointer.
+    This tool also pops up the selection menu when the mouse does not move for
+    a little delay.
+    """
+
+    def __init__(self):
+        super().__init__(iface.mapCanvas())
+
+        # If mouse did not move for <interval> milliseconds, process
+        self.timer = QTimer(self.canvas())
+        self.timer.setSingleShot(True)
+        self.timer.setInterval(700)
+        self.timer.timeout.connect(self.showMapTip)
+
+        self.layers = None
+        self.deltaSearchRadius = None
+
+        self.identifyMenu().setExecWithSingleResult(True)
+        self.identifyMenu().setAllowMultipleReturn(False)
+
+    def activate(self):
+        super().activate()
+
+        # We want to search with a radius of <deltaSearchRadius> meters more than the default radius
+        if self.canvas().mapUnits() != QgsUnitTypes.Standard:
+            QMessageBox.critical(
+                None, "Errror", "Need a map with a standard measurement unit"
+            )
+            self.canvas().unsetMapTool(self)
+            return
+
+        self.deltaSearchRadius = 4 * QgsUnitTypes.fromUnitToUnitFactor(
+            QgsUnitTypes.DistanceMeters, self.canvas().mapUnits()
+        )
+
+        # Find layers
+        try:
+            restrictionLayers = QgsProject.instance().mapLayersByName(
+                "RestrictionLayers"
+            )[0]
+        except IndexError:
+            QMessageBox.critical(
+                None, "Errror", "RestrictionLayers layer is not loaded"
+            )
+            self.canvas().unsetMapTool(self)
+            return
+
+        self.layers = []
+        for layerDetails in restrictionLayers.getFeatures():
+            if (
+                layerDetails.attribute("Code") >= 6
+            ):  # CPZs, PTAs  - TODO: Need to improve
+                allowZoneEditing = QgsExpressionContextUtils.projectScope(
+                    QgsProject.instance()
+                ).variable("AllowZoneEditing")
+                if allowZoneEditing != "True":
+                    continue
+                TOMsMessageLog.logMessage(
+                    "In getRestrictionsUnderPoint: Zone editing enabled: ",
+                    level=Qgis.Info,
+                )
+
+            self.layers.append(
+                QgsProject.instance().mapLayersByName(
+                    layerDetails.attribute("RestrictionLayerName")
+                )[0]
+            )
+
+    def showMapTip(self):
+        pos = self.canvas().mouseLastXY()
+        textList = []
+        for identifyResult in self.process(pos):
+            expContext = QgsExpressionContext(
+                QgsExpressionContextUtils.globalProjectLayerScopes(
+                    identifyResult.mLayer
+                )
+            )
+            expContext.setFeature(identifyResult.mFeature)
+            exp = QgsExpression(identifyResult.mLayer.displayExpression())
+            textList.append(exp.evaluate(expContext))
+        QToolTip.showText(
+            self.canvas().mapToGlobal(pos),
+            "\n".join([text for text in textList if text is not None]),
+        )
+
+    def canvasMoveEvent(self, event):  # pylint: disable=unused-argument
+        self.timer.start()
+
+    def canvasReleaseEvent(self, event):
+        self.timer.stop()
+
+        # Show menu and get the feature selected by the user
+        selectedResults = self.identifyMenu().exec(
+            self.process(event.pos()),
+            self.canvas().mapToGlobal(event.pos()),
+        )
+        if len(selectedResults) != 1:
+            return
+
+        # Select the feature
+        iface.activeLayer().removeSelection()
+        iface.setActiveLayer(selectedResults[0].mLayer)
+        selectedResults[0].mLayer.selectByIds([selectedResults[0].mFeature.id()])
+
+    def process(self, pos):
+        point = QgsGeometry.fromPointXY(self.toMapCoordinates(pos))
+        defaultSearchRadius = QgsMapToolIdentify.searchRadiusMU(self.canvas())
+
+        # First find features within default search radius + delta
+        self.setCanvasPropertiesOverrides(defaultSearchRadius + self.deltaSearchRadius)
+        largeResults = self.identify(
+            pos.x(), pos.y(), self.layers, QgsMapToolIdentify.TopDownAll
+        )
+
+        # Switch line geometries (i.e. bays and restriction lines) into generated symbols
+        # and keep features which intersects the default search radius
+        exp = QgsExpression("generateDisplayGeometry()")
+        expContext = QgsExpressionContext()
+        finalResults = []
+        for identifyResult in largeResults:
+            if identifyResult.mFeature.geometry().type() == QgsWkbTypes.LineGeometry:
+                expContext.setFeature(identifyResult.mFeature)
+                identifyResult.mFeature.setGeometry(exp.evaluate(expContext))
+            if (
+                identifyResult.mFeature.geometry().distance(point)
+                <= defaultSearchRadius
+            ):
+                finalResults.append(identifyResult)
+
+        return finalResults
 
 
 def checkSplitGeometries(currentProposal):

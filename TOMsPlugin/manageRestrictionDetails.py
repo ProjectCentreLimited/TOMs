@@ -19,7 +19,7 @@ from .constants import RestrictionAction, UserPermission
 from .core.tomsMessageLog import TOMsMessageLog
 from .mapTools import (
     CreateRestrictionTool,
-    GeometryInfoMapTool,
+    SelectRestrictionTool,
     checkEditedGeometries,
     checkSplitGeometries,
 )
@@ -150,7 +150,7 @@ class ManageRestrictionDetails:
         )
 
         # MapTools
-        self.geometryInfoMapTool = GeometryInfoMapTool()
+        self.geometryInfoMapTool = SelectRestrictionTool()
         self.geometryInfoMapTool.setAction(self.actionSelectRestriction)
         self.actionSelectRestriction.triggered.connect(
             lambda: iface.mapCanvas().setMapTool(self.geometryInfoMapTool)
