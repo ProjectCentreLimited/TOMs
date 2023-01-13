@@ -5,19 +5,19 @@ name: Unit tests
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: ["develop"]
     paths:
-      - 'tests/**/*.py'
-      - 'TOMsPlugin/**/*.py'
-      - 'requirements/*.txt'
-      - '.github/**/*.yml'
+      - "tests/**/*.py"
+      - "TOMsPlugin/**/*.py"
+      - "requirements/*.txt"
+      - ".github/**/*.yml"
   pull_request:
-    branches: [ "develop" ]
+    branches: ["develop"]
     paths:
-      - 'tests/**/*.py'
-      - 'TOMsPlugin/**/*.py'
-      - 'requirements/*.txt'
-      - '.github/**/*.yml'
+      - "tests/**/*.py"
+      - "TOMsPlugin/**/*.py"
+      - "requirements/*.txt"
+      - ".github/**/*.yml"
 
 permissions:
   contents: read
@@ -25,7 +25,7 @@ permissions:
 env:
   PROJECT_FOLDER: "TOMs"
   REPO_PLUGIN_URL: "https://github.com/ProjectCentreLimited/TOMs/"
-  POSTGRES_VERSION: "12"
+  POSTGRES_VERSION: "14"
   POSTGIS_VERSION: "3.0"
 
 jobs:
@@ -40,14 +40,14 @@ jobs:
         POSTGRES_DB: postgres
         POSTGRES_USER: postgres
         POSTGRES_PASSWORD: postgres
-#          21159729-f930-4dc5-8d8f-562b58665af4
+    #          21159729-f930-4dc5-8d8f-562b58665af4
 
     steps:
       - uses: actions/checkout@v3
 
       - name: Install system packages
         run: |
-            apt-get update && apt-get install -y libpq-dev gcc postgresql-client-${POSTGRES_VERSION} unixodbc-dev g++
+          apt-get update && apt-get install -y libpq-dev gcc postgresql-client-${POSTGRES_VERSION} unixodbc-dev g++
 
       - name: Create cache dir
         run: mkdir -p ~/.cache/pip && chmod -R a+rw ~/.cache/pip
@@ -57,14 +57,14 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements/*.txt') }}
           restore-keys: |
-              ${{ runner.os }}-pip-
+            ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
-            python3 -m pip install --upgrade pip
-            python3 -m pip install -U -r requirements/development.txt
-            python3 -m pip install -U -r requirements/testing-qgis.txt
-            python3 -m pip show pytest-qgis
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -U -r requirements/development.txt
+          python3 -m pip install -U -r requirements/testing-qgis.txt
+          python3 -m pip show pytest-qgis
 
       - name: Test with pytest
         env:
