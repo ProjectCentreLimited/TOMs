@@ -261,13 +261,9 @@ class TOMsTile(QObject):
             QMessageBox.information(
                 iface.mainWindow(),
                 "ERROR",
-                (
-                    "In updateTileRevisionNr."
-                    + "\nTile"
-                    + str(self.thisTileNr)
-                    + ":\nAccept date of current Proposal is before last revision of this tile ",
-                    +"(revision numbers are out of sync)",
-                ),
+                f"In updateTileRevisionNr.\nTile {self.thisTileNr}:\n"
+                "Accept date of current Proposal is before last revision of this tile "
+                "(revision numbers are out of sync)",
             )
             return False
         # lastRevisionNr, lastProposalOpendate = self.getTileRevisionNrAtDate(self.currProposal.getProposalOpenDate())
