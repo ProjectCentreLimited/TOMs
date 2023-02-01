@@ -18,6 +18,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QObject
 from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.utils import iface
 
 from .tomsMessageLog import TOMsMessageLog
 
@@ -258,12 +259,14 @@ class TOMsTile(QObject):
                 level=Qgis.Warning,
             )
             QMessageBox.information(
-                self.proposalsManager.iface.mainWindow(),
+                iface.mainWindow(),
                 "ERROR",
                 (
-                    "In updateTileRevisionNr. tile"
+                    "In updateTileRevisionNr."
+                    + "\nTile"
                     + str(self.thisTileNr)
-                    + " revision numbers are out of sync"
+                    + ":\nAccept date of current Proposal is before last revision of this tile ",
+                    +"(revision numbers are out of sync)",
                 ),
             )
             return False
