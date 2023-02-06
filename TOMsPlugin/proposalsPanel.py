@@ -34,15 +34,14 @@ from .core.tomsMessageLog import TOMsMessageLog
 from .core.tomsTransaction import TOMsTransaction
 from .instantPrint.tomsInstantPrintTool import TOMsInstantPrintTool
 from .manageRestrictionDetails import ManageRestrictionDetails
-from .restrictionTypeUtilsClass import RestrictionTypeUtilsMixin, TOMsConfigFile
+from .restrictionTypeUtilsClass import TOMsConfigFile
 from .searchBar import SearchBar
 from .ui.proposalPanelDockwidget import ProposalPanelDockWidget
+from .utils import onAttributeChangedClass2, setupPanelTabs
 
 
-class ProposalsPanel(RestrictionTypeUtilsMixin):
+class ProposalsPanel:
     def __init__(self, tomsToolbar):
-
-        RestrictionTypeUtilsMixin.__init__(self)
 
         # Save reference to the QGIS interface
         self.canvas = iface.mapCanvas()
@@ -93,7 +92,7 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
             + UserPermission.prettyPrint()
             + " - "
             + os.environ.get("DEPLOY_STAGE", "UNKNOWN DEPLOY STAGE").upper()
-            + "&nbsp;&nbsp;<b>"
+            + "&nbsp;&nbsp;</b>"
         )
         statusLabel.setStyleSheet("background-color: lightblue; color: black")
         self.tomsToolbar.addWidget(statusLabel)
@@ -134,13 +133,6 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
         """Filter main layer based on date and state options"""
 
         TOMsMessageLog.logMessage("In onInitProposalsPanel", level=Qgis.Info)
-
-        # dockwidget may not exist if:
-        #    first run of plugin
-        #    removed on close (see self.onClosePlugin method)
-
-        # self.TOMSLayers.TOMsStartupFailure.connect(self.setCloseTOMsFlag)
-        # self.RestrictionTypeUtilsMixin.tableNames.TOMsStartupFailure.connect(self.closeTOMsTools)
 
         if self.actionProposalsPanel.isChecked():
 
@@ -189,7 +181,7 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
         iface.addDockWidget(Qt.LeftDockWidgetArea, self.dock)
 
         # set up tabbing for Panels
-        self.setupPanelTabs(self.dock)
+        setupPanelTabs(self.dock)
 
         self.proposalsManager.dateChanged.connect(self.onDateChanged)
         self.dock.filterDate.setDisplayFormat("dd-MM-yyyy")
@@ -363,7 +355,7 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
 
         self.proposalDialog.attributeForm().attributeChanged.connect(
             functools.partial(
-                self.onAttributeChangedClass2, self.newProposal, self.proposals
+                onAttributeChangedClass2, self.newProposal, self.proposals
             )
         )
 
@@ -442,7 +434,7 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
 
         self.proposalDialog.attributeForm().attributeChanged.connect(
             functools.partial(
-                self.onAttributeChangedClass2, self.currProposal, self.proposals
+                onAttributeChangedClass2, self.currProposal, self.proposals
             )
         )
 
@@ -470,6 +462,174 @@ class ProposalsPanel(RestrictionTypeUtilsMixin):
 
         self.proposalDialog.setEnabled(UserPermission.WRITE)
         self.proposalDialog.show()
+
+    def onSaveProposalFormDetails(
+        self,
+        currProposalRecord,
+        currProposalObject,
+        proposalsLayer,
+        proposalsDialog,
+        proposalTransaction,
+    ):
+        TOMsMessageLog.logMessage("In onSaveProposalFormDetails.", level=Qgis.Info)
+
+        self.proposals = proposalsLayer
+
+        # set up field indexes
+        idxProposalID = self.proposals.fields().indexFromName("ProposalID")
+        idxProposalTitle = self.proposals.fields().indexFromName("ProposalTitle")
+        idxProposalStatusID = self.proposals.fields().indexFromName("ProposalStatusID")
+        idxProposalOpenDate = self.proposals.fields().indexFromName("ProposalOpenDate")
+
+        currProposalID = currProposalObject.getProposalNr()
+        currProposalStatusID = currProposalObject.getProposalStatusID()
+        currProposalTitle = currProposalObject.getProposalTitle()
+
+        newProposalStatusID = currProposalRecord[idxProposalStatusID]
+        newProposalOpenDate = currProposalRecord[idxProposalOpenDate]
+        TOMsMessageLog.logMessage(
+            "In onSaveProposalFormDetails. currProposalStatus = "
+            + str(currProposalStatusID),
+            level=Qgis.Info,
+        )
+
+        newProposal = False
+        proposalAcceptedRejected = False
+
+        if newProposalStatusID == ProposalStatus.ACCEPTED.value:  # 2 = accepted
+
+            reply = QMessageBox.question(
+                None,
+                "Confirm changes to Proposal",
+                # How do you access the main window to make the popup ???
+                "Do you want to ACCEPT this proposal? Accepting will make all the proposed changes permanent.",
+                QMessageBox.Yes,
+                QMessageBox.No,
+            )
+            if reply == QMessageBox.Yes:
+
+                currProposalObject.setProposalOpenDate(newProposalOpenDate)
+
+                if not currProposalObject.acceptProposal():
+                    proposalTransaction.rollBackTransactionGroup()
+                    proposalsDialog.reject()
+                    reply = QMessageBox.information(
+                        None, "Error", "Error in accepting proposal ...", QMessageBox.Ok
+                    )
+                    TOMsMessageLog.logMessage(
+                        "In onSaveProposalFormDetails. Error in transaction",
+                        level=Qgis.Info,
+                    )
+                    return
+
+                proposalsDialog.attributeForm().save()
+                proposalsDialog.close()
+                proposalAcceptedRejected = True
+
+            else:
+                proposalsDialog.reject()
+
+        elif currProposalStatusID == ProposalStatus.REJECTED.value:  # 3 = rejected
+
+            reply = QMessageBox.question(
+                None,
+                "Confirm changes to Proposal",
+                # How do you access the main window to make the popup ???
+                "Do you want to REJECT this proposal? This will remove it from the "
+                "Proposal list (although it will remain in the system).",
+                QMessageBox.Yes,
+                QMessageBox.No,
+            )
+            if reply == QMessageBox.Yes:
+
+                if not currProposalObject.rejectProposal():
+                    proposalTransaction.rollBackTransactionGroup()
+                    proposalsDialog.reject()
+                    TOMsMessageLog.logMessage(
+                        "In onSaveProposalFormDetails. Error in transaction",
+                        level=Qgis.Info,
+                    )
+                    return
+
+                proposalsDialog.attributeForm().save()
+                proposalsDialog.close()
+                proposalAcceptedRejected = True
+
+            else:
+                proposalsDialog.reject()
+
+        else:
+
+            TOMsMessageLog.logMessage(
+                "In onSaveProposalFormDetails. currProposalID = " + str(currProposalID),
+                level=Qgis.Info,
+            )
+            proposalsDialog.attributeForm().save()
+
+            # anything else can be saved.
+            if (
+                currProposalID == 0
+            ):  # We should not be here if this is the current proposal ... 0 is place holder ...
+
+                # This is a new proposal ...
+
+                newProposal = True
+                TOMsMessageLog.logMessage(
+                    "In onSaveProposalFormDetails. New Proposal ... ", level=Qgis.Info
+                )
+
+            else:
+                pass
+                # self.Proposals.updateFeature(currProposalObject.getProposalRecord())  # TH (added for v3)
+
+            proposalsDialog.reject()
+
+            TOMsMessageLog.logMessage(
+                "In onSaveProposalFormDetails. ProposalTransaction modified Status: "
+                + str(proposalTransaction.currTransactionGroup.modified()),
+                level=Qgis.Info,
+            )
+
+        TOMsMessageLog.logMessage(
+            "In onSaveProposalFormDetails. Before save. "
+            + str(currProposalTitle)
+            + " Status: "
+            + str(currProposalStatusID),
+            level=Qgis.Info,
+        )
+
+        proposalTransaction.commitTransactionGroup()
+
+        proposalsDialog.close()
+
+        # For some reason the committedFeaturesAdded signal for layer "Proposals" is not
+        # firing at this point and so the cbProposals is not refreshing ...
+
+        if newProposal:
+            TOMsMessageLog.logMessage(
+                "In onSaveProposalFormDetails. newProposalID = " + str(currProposalID),
+                level=Qgis.Info,
+            )
+
+            for proposal in self.proposals.getFeatures():
+                if proposal[idxProposalTitle] == currProposalTitle:
+                    TOMsMessageLog.logMessage(
+                        "In onSaveProposalFormDetails. newProposalID = "
+                        + str(proposal.id()),
+                        level=Qgis.Info,
+                    )
+                    newProposalID = proposal[idxProposalID]
+
+            self.proposalsManager.newProposalCreated.emit(newProposalID)
+
+        elif proposalAcceptedRejected:
+            # refresh the cbProposals and set current Proposal to 0
+            self.createProposalcb()
+            self.proposalsManager.setCurrentProposal(0)
+
+        else:
+
+            self.proposalsManager.newProposalCreated.emit(currProposalID)
 
     def onProposalListIndexChanged(self):
         TOMsMessageLog.logMessage("In onProposalListIndexChanged.", level=Qgis.Info)

@@ -299,7 +299,7 @@ class TOMsGeometryElement(QObject):
                 newAz, distWidth = GenerateGeometryUtils.calcBisector(
                     prevAz, azimuth, turn, shpExtent
                 )
-                newAzOffset, distOffset = GenerateGeometryUtils.calcBisector(
+                _, distOffset = GenerateGeometryUtils.calcBisector(
                     prevAz, azimuth, turn, offset
                 )
 

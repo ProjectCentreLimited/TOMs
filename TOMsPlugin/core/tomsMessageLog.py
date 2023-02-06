@@ -14,12 +14,7 @@ import logging
 import os.path
 from typing import Any
 
-from qgis.core import (
-    Qgis,
-    QgsExpressionContextUtils,
-    QgsMessageLog,
-    QgsProject,
-)
+from qgis.core import Qgis, QgsMessageLog
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s",

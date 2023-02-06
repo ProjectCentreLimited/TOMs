@@ -55,6 +55,7 @@ class InstantPrintDialog(QDialog):
 class InstantPrintTool(QgsMapTool, InstantPrintDialog):
     def __init__(self, populateCompositionFz=None):
         QgsMapTool.__init__(self, iface.mapCanvas())
+        InstantPrintDialog.__init__(self)
 
         projectInstance = QgsProject.instance()
         self.projectLayoutManager = projectInstance.layoutManager()

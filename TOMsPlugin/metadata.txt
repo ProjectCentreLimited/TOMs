@@ -1,23 +1,23 @@
-# This file contains metadata for your plugin. Since 
-# version 2.0 of QGIS this is the proper way to supply 
-# information about a plugin. The old method of 
-# embedding metadata in __init__.py will 
+# This file contains metadata for your plugin. Since
+# version 2.0 of QGIS this is the proper way to supply
+# information about a plugin. The old method of
+# embedding metadata in __init__.py will
 # is no longer supported since version 2.0.
 
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
 name=TOMs
-qgisMinimumVersion=3.0
-description=A plugin is used to manage and display parking restrictions
-version=0.1
-author=Tim Hancock for MHTC Ltd
-email=thancock@mhtc.co.uk
+qgisMinimumVersion=3.22
+description=Plugin to manage and display parking restrictions
+version=0.5
+author=Oslandia
+email=infos@oslandia.com
 
-about=To find out more about this plugin, see: http://www.mhtc.co.uk/
+about=Plugin to manage and display parking restrictions
 
-tracker=https://github.com/opengisch/TOMs/issues
-repository=https://github.com/opengisch/TOMs
+tracker=https://github.com/ProjectCentreLimited/TOMs/issues
+repository=https://github.com/ProjectCentreLimited/TOMs
 # End of mandatory metadata
 
 # Recommended items:
@@ -28,7 +28,7 @@ repository=https://github.com/opengisch/TOMs
 # Tags are comma separated with spaces allowed
 tags=
 
-homepage=http://www.mhtc.co.uk/
+homepage=
 category=Plugins
 icon=icon.png
 # experimental flag
@@ -36,4 +36,3 @@ experimental=True
 
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
-

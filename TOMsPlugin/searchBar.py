@@ -12,12 +12,7 @@
 from qgis.core import Qgis, QgsProject, QgsVectorLayer
 from qgis.PyQt.QtCore import QCoreApplication, QStringListModel, Qt
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import (
-    QAction,
-    QCompleter,
-    QLineEdit,
-    QToolBar,
-)
+from qgis.PyQt.QtWidgets import QAction, QCompleter, QLineEdit
 from qgis.utils import iface
 
 from .core.tomsMessageLog import TOMsMessageLog
