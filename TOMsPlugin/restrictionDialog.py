@@ -68,13 +68,12 @@ class RestrictionDialogWrapper:
         buttonBox = self.dialog.findChild(QDialogButtonBox, "button_box")
         if buttonBox is None:
             raise ValueError("In setupRestrictionDialog. button box not found")
-        buttonBox.accepted.connect(
-            self.accept,
-        )
         self.dialog.attributeForm().attributeChanged.connect(
             functools.partial(onAttributeChangedClass2, self.feature, self.layer)
         )
-        buttonBox.rejected.connect(self.reject)
+
+        buttonBox.accepted.connect(lambda: self.accept())
+        buttonBox.rejected.connect(lambda: self.reject())
 
         # For the specific case of Electric Vehicle Charging Place
         # the PTA must be editable
