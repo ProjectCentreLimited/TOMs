@@ -413,9 +413,6 @@ class TOMsLabelLayerNames(QObject):
         # given a layer return the associated layer with label geometry
         # get the corresponding label layer
 
-        def alertBox(text):
-            QMessageBox.information(None, "Information", text, QMessageBox.Ok)
-
         if currRestrictionLayer.name() == "Bays":
             labelLayerName = ["Bays.label_pos"]
         if currRestrictionLayer.name() == "Lines":
@@ -430,7 +427,6 @@ class TOMsLabelLayerNames(QObject):
             labelLayerName = ["ParkingTariffAreas.label_pos"]
 
         if len(labelLayerName) == 0:
-            alertBox("No labels for this restriction type")
             return [""]
 
         return labelLayerName
@@ -444,9 +440,6 @@ class TOMsLabelLayerNames(QObject):
     def setCurrLabelLeaderLayerNames(self, currRestrictionLayer):
         # given a layer return the associated layer with label geometry
         # get the corresponding label layer
-
-        def alertBox(text):
-            QMessageBox.information(None, "Information", text, QMessageBox.Ok)
 
         if currRestrictionLayer.name() == "Bays":
             labelLeaderLayersNames = ["Bays.label_ldr"]
@@ -462,7 +455,6 @@ class TOMsLabelLayerNames(QObject):
             labelLeaderLayersNames = ["ParkingTariffAreas.label_ldr"]
 
         if len(labelLeaderLayersNames) == 0:
-            alertBox("No labels for this restriction type")
             return [""]
 
         return labelLeaderLayersNames

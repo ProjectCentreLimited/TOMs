@@ -37,7 +37,7 @@ from .manageRestrictionDetails import ManageRestrictionDetails
 from .restrictionTypeUtilsClass import TOMsConfigFile
 from .searchBar import SearchBar
 from .ui.proposalPanelDockwidget import ProposalPanelDockWidget
-from .utils import onAttributeChangedClass2, setupPanelTabs
+from .utils import saveLastSelectedValue, setupPanelTabs
 
 
 class ProposalsPanel:
@@ -355,7 +355,7 @@ class ProposalsPanel:
 
         self.proposalDialog.attributeForm().attributeChanged.connect(
             functools.partial(
-                onAttributeChangedClass2, self.newProposal, self.proposals
+                saveLastSelectedValue, self.newProposal, self.proposals
             )
         )
 
@@ -434,7 +434,7 @@ class ProposalsPanel:
 
         self.proposalDialog.attributeForm().attributeChanged.connect(
             functools.partial(
-                onAttributeChangedClass2, self.currProposal, self.proposals
+                saveLastSelectedValue, self.currProposal, self.proposals
             )
         )
 

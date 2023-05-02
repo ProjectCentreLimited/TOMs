@@ -144,21 +144,6 @@ class GenerateGeometryUtils(QObject):
         return newAz
 
     @staticmethod
-    def setRoadName(feature):
-
-        newRoadName, newUSRN = GenerateGeometryUtils.determineRoadName(feature)
-        # now set the attributes
-        try:
-            if newRoadName:
-                feature.setAttribute("RoadName", newRoadName)
-                feature.setAttribute("USRN", newUSRN)
-        except Exception as e:
-            TOMsMessageLog.logMessage(
-                "setRoadName: error in expression function: {}".format(e),
-                level=Qgis.Warning,
-            )
-
-    @staticmethod
     def determineRoadName(feature):
 
         TOMsMessageLog.logMessage(

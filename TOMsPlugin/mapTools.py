@@ -26,9 +26,9 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.gui import QgsMapToolCapture, QgsMapToolIdentify
+from qgis.gui import QgsMapToolDigitizeFeature, QgsMapToolIdentify
 from qgis.PyQt.QtCore import Qt, QTimer
-from qgis.PyQt.QtWidgets import QMessageBox, QToolTip
+from qgis.PyQt.QtWidgets import QDockWidget, QMessageBox, QToolTip
 from qgis.utils import iface
 
 from .constants import RestrictionAction
@@ -39,355 +39,73 @@ from .restrictionTypeUtilsClass import TOMsLabelLayerNames
 from .utils import setupPanelTabs
 
 
-class CreateRestrictionTool(QgsMapToolCapture):
-    # helpful link - http://apprize.info/python/qgis/7.html ??
-    def __init__(self, proposalsManager):
+class CreateRestrictionTool(QgsMapToolDigitizeFeature):
+    def __init__(self):
 
-        QgsMapToolCapture.__init__(
-            self,
-            iface.mapCanvas(),
-            iface.cadDockWidget(),
-            QgsMapToolCapture.CaptureNone,
-        )
-
-        # self.dialog = dialog
-        self.proposalsManager = proposalsManager
-
-        self.setAdvancedDigitizingAllowed(True)
-        self.setAutoSnapEnabled(True)
-
-        # I guess at this point, it is possible to set things like capture mode,
-        # snapping preferences, ... (not sure of all the elements that are required)
-        # capture mode (... not sure if this has already been set? - or how to set it)
-
-        # set up tracing configuration
-        self.tomsTracer = QgsTracer()
-
-        # set an extent for the Tracer
-        tracerExtent = iface.mapCanvas().extent()
-        tolerance = 1000.0
-        tracerExtent.setXMaximum(tracerExtent.xMaximum() + tolerance)
-        tracerExtent.setYMaximum(tracerExtent.yMaximum() + tolerance)
-        tracerExtent.setXMinimum(tracerExtent.xMinimum() - tolerance)
-        tracerExtent.setYMinimum(tracerExtent.yMinimum() - tolerance)
-
-        self.tomsTracer.setExtent(tracerExtent)
-
-        TOMsMessageLog.logMessage(
-            "In CreateRestrictionTool. Finished init.", level=Qgis.Info
-        )
-
-    def activate(self):
         advancedDigitizingPanel = iface.cadDockWidget()
+        super().__init__(iface.mapCanvas(), advancedDigitizingPanel)
         advancedDigitizingPanel.setVisible(True)
         advancedDigitizingPanel.enable()
         if not advancedDigitizingPanel.enableAction().isChecked():
             advancedDigitizingPanel.enableAction().trigger()
-        setupPanelTabs(advancedDigitizingPanel)
 
-        self.layer().startEditing()
-        traceLayers = [QgsProject.instance().mapLayersByName("RoadCasement")[0]]
-        self.tomsTracer.setLayers(traceLayers)
-        QgsMapToolCapture.activate(self)
+        self.setAdvancedDigitizingAllowed(True)
+        self.digitizingCompleted.connect(self.addFeature)
 
-        self.lastPoint = None
-        self.currPoint = None
-        self.lastEvent = None
-        self.result = None
-        self.nrPoints = None
+    def activate(self):
+        super().activate()
+        setupPanelTabs(self.cadDockWidget())
 
-        # Seems that this is important - or at least to create a point list that is used later to create Geometry
-        self.sketchPoints = self.points()
+    def addFeature(self, feature):
+        layerName = self.layer().name()
 
-        # Set up rubber band. In current implementation, it is not showing feeback for "next" location
+        if layerName == "ConstructionLines":
+            self.layer().addFeature(feature)
+            self.layer().commitChanges()
+            return
 
-        self.rubberBand = self.createRubberBand(
-            QgsWkbTypes.LineGeometry
-        )  # what about a polygon ??
+        feature["RestrictionID"] = str(uuid.uuid4())
+        newRoadName, newUSRN = GenerateGeometryUtils.determineRoadName(feature)
+        feature["RoadName"] = newRoadName
+        feature["USRN"] = newUSRN
+        currentCPZ, cpzWaitingTimeID = GenerateGeometryUtils.getCurrentCPZDetails(feature)
+        currentED, edWaitingTimeID = GenerateGeometryUtils.getCurrentEventDayDetails(feature)
 
-        QgsMapToolCapture.activate(self)
+        if layerName != "Signs":
+            feature["CPZ"] = currentCPZ
+            feature["MatchDayEventDayZone"] = currentED
 
-    def cadCanvasReleaseEvent(self, event):
-        QgsMapToolCapture.cadCanvasReleaseEvent(self, event)
-        TOMsMessageLog.logMessage(
-            ("In Create - cadCanvasReleaseEvent"), level=Qgis.Info
-        )
+        if layerName == "Lines":
+            GenerateGeometryUtils.setAzimuthToRoadCentreLine(feature)
+            feature["RestrictionTypeID"] = QgsSettings().value("Lines/RestrictionTypeID", 224)
+            feature["GeomShapeID"] = QgsSettings().value("Lines/GeomShapeID", 10)
+            feature["NoWaitingTimeID"] = cpzWaitingTimeID
+            feature["MatchDayTimePeriodID"] = edWaitingTimeID
 
-        if event.button() == Qt.LeftButton:
-            if not self.isCapturing():
-                self.startCapturing()
-            TOMsMessageLog.logMessage(
-                f"In Create - cadCanvasReleaseEvent: checkSnapping = {event.isSnapped}",
-                level=Qgis.Info,
-            )
-
-            # Now wanting to add point(s) to new shape. Take account of snapping and tracing
-            self.currPoint = event.snapPoint()
-            self.lastEvent = event
-
-            if self.lastPoint is None:  # First point
-                self.result = self.addVertex(self.currPoint)
-                TOMsMessageLog.logMessage(
-                    "In Create - cadCanvasReleaseEvent: adding vertex 0 "
-                    + str(self.result),
-                    level=Qgis.Info,
-                )
-
-            else:
-                # check for shortest line
-                resVectorList = self.tomsTracer.findShortestPath(
-                    self.lastPoint, self.currPoint
-                )
-
-                TOMsMessageLog.logMessage(
-                    "In Create - cadCanvasReleaseEvent: traceList" + str(resVectorList),
-                    level=Qgis.Info,
-                )
-                TOMsMessageLog.logMessage(
-                    "In Create - cadCanvasReleaseEvent: traceList"
-                    + str(resVectorList[1]),
-                    level=Qgis.Info,
-                )
-                if resVectorList[1] == 0:
-                    # path found, add the points to the list
-                    TOMsMessageLog.logMessage(
-                        "In Create - cadCanvasReleaseEvent (found path) ",
-                        level=Qgis.Info,
-                    )
-
-                    # self.points.extend(resVectorList)
-                    initialPoint = True
-                    for point in resVectorList[0]:
-                        if not initialPoint:
-
-                            TOMsMessageLog.logMessage(
-                                (
-                                    "In CreateRestrictionTool - cadCanvasReleaseEvent (found path) X:"
-                                    + str(point.x())
-                                    + " Y: "
-                                    + str(point.y())
-                                ),
-                                level=Qgis.Info,
-                            )
-
-                            self.result = self.addVertex(point)
-
-                        initialPoint = False
-
-                    TOMsMessageLog.logMessage(
-                        ("In Create - cadCanvasReleaseEvent (added shortest path)"),
-                        level=Qgis.Info,
-                    )
-
-                else:
-                    # error encountered, add just the curr point ??
-
-                    self.result = self.addVertex(self.currPoint)
-                    TOMsMessageLog.logMessage(
-                        (
-                            "In CreateRestrictionTool - (adding shortest path) X:"
-                            + str(self.currPoint.x())
-                            + " Y: "
-                            + str(self.currPoint.y())
-                        ),
-                        level=Qgis.Info,
-                    )
-
-            self.lastPoint = self.currPoint
-
-            TOMsMessageLog.logMessage(
-                (
-                    "In Create - cadCanvasReleaseEvent (AddVertex/Line) Result: "
-                    + str(self.result)
-                    + " X:"
-                    + str(self.currPoint.x())
-                    + " Y:"
-                    + str(self.currPoint.y())
-                ),
-                level=Qgis.Info,
-            )
-
-        elif event.button() == Qt.RightButton:
-            # Stop capture when right button or escape key is pressed
-            # points = self.getCapturedPoints()
-            self.getPointsCaptured()
-
-            # Need to think about the default action here if none of these buttons/keys are pressed.
-
-    def keyPressEvent(self, event):
-        if (
-            (event.key() == Qt.Key_Backspace)
-            or (event.key() == Qt.Key_Delete)
-            or (event.key() == Qt.Key_Escape)
-        ):
-            self.undo()
-        if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
-            # TODO: Need to think about the default action here if none of these buttons/keys are pressed.
-            pass
-
-    def getPointsCaptured(self):
-        TOMsMessageLog.logMessage(
-            "In CreateRestrictionTool - getPointsCaptured", level=Qgis.Info
-        )
-
-        # Check the number of points
-        self.nrPoints = self.size()
-        TOMsMessageLog.logMessage(
-            (
-                "In CreateRestrictionTool - getPointsCaptured; Stopping: "
-                + str(self.nrPoints)
-            ),
-            level=Qgis.Info,
-        )
-
-        self.sketchPoints = self.points()
-
-        for point in self.sketchPoints:
-            TOMsMessageLog.logMessage(
-                (
-                    "In CreateRestrictionTool - getPointsCaptured X:"
-                    + str(point.x())
-                    + " Y: "
-                    + str(point.y())
-                ),
-                level=Qgis.Info,
-            )
-
-        # stop capture activity
-        self.stopCapturing()
-
-        if self.nrPoints > 0:
-
-            # take points from the rubber band and copy them into the "feature"
-
-            fields = self.layer().dataProvider().fields()
-            feature = QgsFeature()
-            feature.setFields(fields)
-
-            TOMsMessageLog.logMessage(
-                (
-                    "In CreateRestrictionTool. getPointsCaptured, layerType: "
-                    + str(self.layer().geometryType())
-                ),
-                level=Qgis.Info,
-            )
-
-            if self.layer().geometryType() == 0:  # Point
-                feature.setGeometry(QgsGeometry.fromPointXY(self.sketchPoints[0]))
-            elif self.layer().geometryType() == 1:  # Line
-                if len(self.sketchPoints) < 2:
-                    QMessageBox.information(
-                        None, "Error", "Line with only one point", QMessageBox.Ok
-                    )
-                    return
-                feature.setGeometry(QgsGeometry.fromPolylineXY(self.sketchPoints))
-            elif self.layer().geometryType() == 2:  # Polygon
-                feature.setGeometry(QgsGeometry.fromPolygonXY([self.sketchPoints]))
-            else:
-                TOMsMessageLog.logMessage(
-                    ("In CreateRestrictionTool - no geometry type found"),
-                    level=Qgis.Info,
-                )
-                return
-
-            # Currently geometry is not being created correct. Might be worth checking co-ord values ...
-
-            TOMsMessageLog.logMessage(
-                (
-                    "In Create - getPointsCaptured; geometry prepared; "
-                    + str(feature.geometry().asWkt())
-                ),
-                level=Qgis.Info,
-            )
-
-            if self.layer().name() == "ConstructionLines":
-                self.layer().addFeature(feature)
-            else:
-
-                self.setDefaultRestrictionDetails(feature, self.layer())
-                TOMsMessageLog.logMessage(
-                    "In CreateRestrictionTool - getPointsCaptured. currRestrictionLayer: "
-                    + str(self.layer().name()),
-                    level=Qgis.Info,
-                )
-
-                newRestrictionID = str(uuid.uuid4())
-                feature["RestrictionID"] = newRestrictionID
-
-                dialog = RestrictionDialogWrapper(self.layer(), feature)
-                dialog.show()
-
-    def setDefaultRestrictionDetails(self, currRestriction, currRestrictionLayer):
-        # FIXME: tellement de commentaire, au final pas de date settée ?
-        TOMsMessageLog.logMessage("In setDefaultRestrictionDetails: ", level=Qgis.Info)
-
-        GenerateGeometryUtils.setRoadName(currRestriction)
-        if currRestrictionLayer.geometryType() == 1:  # Line or Bay
-            GenerateGeometryUtils.setAzimuthToRoadCentreLine(currRestriction)
-            # currRestriction.setAttribute("RestrictionLength", currRestriction.geometry().length())
-
-        currentCPZ, cpzWaitingTimeID = GenerateGeometryUtils.getCurrentCPZDetails(
-            currRestriction
-        )
-        currentED, edWaitingTimeID = GenerateGeometryUtils.getCurrentEventDayDetails(
-            currRestriction
-        )
-
-        if currRestrictionLayer.name() != "Signs":
-            currRestriction.setAttribute("CPZ", currentCPZ)
-            currRestriction.setAttribute("MatchDayEventDayZone", currentED)
-
-        # TODO: get the last used values ... look at field ...
-
-        if currRestrictionLayer.name() == "Lines":
-            # currRestriction.setAttribute("RestrictionTypeID", 224)  # 10 = SYL (Lines)
-            currRestriction.setAttribute(
-                "RestrictionTypeID", QgsSettings().value("Lines/RestrictionTypeID", 224)
-            )
-            # currRestriction.setAttribute("GeomShapeID", 10)   # 10 = Parallel Line
-            currRestriction.setAttribute(
-                "GeomShapeID", QgsSettings().value("Lines/GeomShapeID", 10)
-            )
-            currRestriction.setAttribute("NoWaitingTimeID", cpzWaitingTimeID)
-            currRestriction.setAttribute("MatchDayTimePeriodID", edWaitingTimeID)
-            # currRestriction.setAttribute("Lines_DateTime", currDate)
-
-        elif currRestrictionLayer.name() == "Bays":
-            # currRestriction.setAttribute("RestrictionTypeID", 101)  # 28 = Permit Holders Bays (Bays)
-            currRestriction.setAttribute(
-                "RestrictionTypeID",
-                QgsSettings().value("Bays/RestrictionTypeID", 101),
-            )  # 28 = Permit Holders Bays (Bays)
-            currRestriction.setAttribute(
-                "GeomShapeID",
-                QgsSettings().value("Bays/GeomShapeID", 21),
-            )  # 21 = Parallel Bay (Polygon)
-            # currRestriction.setAttribute("GeomShapeID", 21)   # 21 = Parallel Bay (Polygon)
-            currRestriction.setAttribute("NrBays", -1)
-
-            currRestriction.setAttribute("TimePeriodID", cpzWaitingTimeID)
-            currRestriction.setAttribute("MatchDayTimePeriodID", edWaitingTimeID)
-
+        elif layerName == "Bays":
+            GenerateGeometryUtils.setAzimuthToRoadCentreLine(feature)
+            feature["RestrictionTypeID"] = QgsSettings().value("Bays/RestrictionTypeID", 101)
+            feature["GeomShapeID"] = QgsSettings().value("Bays/GeomShapeID", 21)
+            feature["NrBays"] = -1
+            feature["TimePeriodID"] = cpzWaitingTimeID
+            feature["MatchDayTimePeriodID"] = edWaitingTimeID
             (
                 currentPTA,
                 ptaMaxStayID,
                 ptaNoReturnID,
-            ) = GenerateGeometryUtils.getCurrentPTADetails(currRestriction)
-
-            currRestriction.setAttribute("MaxStayID", ptaMaxStayID)
-            currRestriction.setAttribute("NoReturnID", ptaNoReturnID)
-            currRestriction.setAttribute("ParkingTariffArea", currentPTA)
+            ) = GenerateGeometryUtils.getCurrentPTADetails(feature)
+            feature["MaxStayID"] = ptaMaxStayID
+            feature["NoReturnID"] = ptaNoReturnID
+            feature["ParkingTariffArea"] = currentPTA
 
             try:
                 payParkingAreasLayer = QgsProject.instance().mapLayersByName(
                     "PayParkingAreas"
                 )[0]
                 currPayParkingArea = GenerateGeometryUtils.getPolygonForRestriction(
-                    currRestriction, payParkingAreasLayer
+                    feature, payParkingAreasLayer
                 )
-                currRestriction.setAttribute(
-                    "PayParkingAreaID", currPayParkingArea.attribute("Code")
-                )
+                feature["PayParkingAreaID"] = currPayParkingArea.attribute("Code")
             except Exception as e:
                 TOMsMessageLog.logMessage(
                     "In setDefaultRestrictionDetails:payParkingArea: error: {}".format(
@@ -396,20 +114,21 @@ class CreateRestrictionTool(QgsMapToolCapture):
                     level=Qgis.Info,
                 )
 
-        elif currRestrictionLayer.name() == "Signs":
-            # currRestriction.setAttribute("SignType_1", 28)  # 28 = Permit Holders Only (Signs)
-            currRestriction.setAttribute(
-                "SignType_1",
-                QgsSettings().value("Signs/SignType_1", 28),
-            )
+        elif layerName == "Signs":
+            # feature.setAttribute("SignType_1", 28)  # 28 = Permit Holders Only (Signs)
+            feature["SignType_1"] = QgsSettings().value("Signs/SignType_1", 28)
 
-        elif currRestrictionLayer.name() == "RestrictionPolygons":
-            # currRestriction.setAttribute("RestrictionTypeID", 4)  # 28 = Residential mews area (RestrictionPolygons)
-            currRestriction.setAttribute(
-                "RestrictionTypeID",
-                QgsSettings().value("RestrictionPolygons/RestrictionTypeID", 4),
-            )
-            currRestriction.setAttribute("MatchDayTimePeriodID", edWaitingTimeID)
+        elif layerName == "RestrictionPolygons":
+            # feature.setAttribute("RestrictionTypeID", 4)  # 28 = Residential mews area (RestrictionPolygons)
+            feature["RestrictionTypeID"] = QgsSettings().value("RestrictionPolygons/RestrictionTypeID", 4)
+            feature["MatchDayTimePeriodID"] = edWaitingTimeID
+
+        else:
+            raise NotImplementedError(f"Layer {layerName} not implemented")
+
+        dialog = RestrictionDialogWrapper(self.layer(), feature)
+        dialog.dialog.exec()
+        iface.actionPan().trigger()
 
 
 class SelectRestrictionTool(QgsMapToolIdentify):

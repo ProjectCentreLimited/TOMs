@@ -155,9 +155,6 @@ class ManageRestrictionDetails:
         self.actionSelectRestriction.triggered.connect(
             lambda: iface.mapCanvas().setMapTool(self.geometryInfoMapTool)
         )
-        self.createRestrictionTool = CreateRestrictionTool(
-            self.proposalsManager,
-        )
 
         # deal with saving label changes ...
         self.restrictionTransaction = None
@@ -301,8 +298,9 @@ class ManageRestrictionDetails:
         else:
             self.restrictionTransaction.startTransactionGroup()
 
-        self.createRestrictionTool.setAction(createAction)
-        iface.mapCanvas().setMapTool(self.createRestrictionTool)
+        self.mapTool = CreateRestrictionTool()
+        iface.mapCanvas().setMapTool(self.mapTool)
+        self.mapTool.setAction(createAction)
 
         TOMsMessageLog.logMessage(
             "In doCreateRestriction - tool activated on " + currLayer.name(),
@@ -490,8 +488,12 @@ class ManageRestrictionDetails:
                 iface.actionVertexToolActiveLayer().toggled.connect(
                     lambda: self.actionEditRestriction.setChecked(False)
                 )
-                setupPanelTabs(iface.cadDockWidget())
-                iface.cadDockWidget().enable()
+                advancedDigitizingPanel = iface.cadDockWidget()
+                advancedDigitizingPanel.setVisible(True)
+                advancedDigitizingPanel.enable()
+                if not advancedDigitizingPanel.enableAction().isChecked():
+                    advancedDigitizingPanel.enableAction().trigger()
+                setupPanelTabs(advancedDigitizingPanel)
 
             else:
                 QMessageBox.information(
@@ -556,8 +558,12 @@ class ManageRestrictionDetails:
                 currRestrictionLayer.editBuffer().featureAdded.connect(
                     self.stopSplitting
                 )
-                setupPanelTabs(iface.cadDockWidget())
-                iface.cadDockWidget().enable()
+                advancedDigitizingPanel = iface.cadDockWidget()
+                advancedDigitizingPanel.setVisible(True)
+                advancedDigitizingPanel.enable()
+                if not advancedDigitizingPanel.enableAction().isChecked():
+                    advancedDigitizingPanel.enableAction().trigger()
+                setupPanelTabs(advancedDigitizingPanel)
 
             else:
                 QMessageBox.information(
