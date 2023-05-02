@@ -133,7 +133,7 @@ class RestrictionDialogWrapper:
                 currProposalID,
             ):
 
-                # restriction already is part of the current proposal
+                # restriction is already part of the current proposal
                 # simply make changes to the current restriction in the current layer
                 TOMsMessageLog.logMessage(
                     "In RestrictionDialogWrapper.accept. Saving details straight from form."
