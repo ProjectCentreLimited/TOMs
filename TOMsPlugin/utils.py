@@ -18,9 +18,7 @@ def restrictionInProposal(currRestrictionID, currRestrictionLayerID, proposalID)
 
     TOMsMessageLog.logMessage("In restrictionInProposal.", level=Qgis.Info)
 
-    restrictionsInProposalsLayer = QgsProject.instance().mapLayersByName(
-        "RestrictionsInProposals"
-    )[0]
+    restrictionsInProposalsLayer = QgsProject.instance().mapLayersByName("RestrictionsInProposals")[0]
 
     restrictionFound = (
         len(
@@ -76,13 +74,9 @@ def deleteRestrictionInProposal(currRestrictionID, currRestrictionLayerID, propo
     (does not delete the restriction itself)
     """
 
-    TOMsMessageLog.logMessage(
-        "In deleteRestrictionInProposal: " + str(currRestrictionID), level=Qgis.Info
-    )
+    TOMsMessageLog.logMessage("In deleteRestrictionInProposal: " + str(currRestrictionID), level=Qgis.Info)
 
-    restrictionsInProposalsLayer = QgsProject.instance().mapLayersByName(
-        "RestrictionsInProposals"
-    )[0]
+    restrictionsInProposalsLayer = QgsProject.instance().mapLayersByName("RestrictionsInProposals")[0]
 
     features = list(
         restrictionsInProposalsLayer.getFeatures(
@@ -108,12 +102,7 @@ def saveLastSelectedValue(currFeature, layer, fieldName, value):
     """
 
     TOMsMessageLog.logMessage(
-        "In FormOpen:onAttributeChangedClass 2 - layer: "
-        + str(layer.name())
-        + " ("
-        + fieldName
-        + "): "
-        + str(value),
+        "In FormOpen:onAttributeChangedClass 2 - layer: " + str(layer.name()) + " (" + fieldName + "): " + str(value),
         level=Qgis.Info,
     )
 
@@ -126,9 +115,7 @@ def saveLastSelectedValue(currFeature, layer, fieldName, value):
         QMessageBox.information(
             None,
             "Error",
-            "onAttributeChangedClass2. Update failed for: {}({}): {}; {}".format(
-                layer.name(), fieldName, value, e
-            ),
+            "onAttributeChangedClass2. Update failed for: {}({}): {}; {}".format(layer.name(), fieldName, value, e),
             QMessageBox.Ok,
         )  # rollback all changes
 
@@ -164,10 +151,7 @@ def setupPanelTabs(panel):
     dockstate = iface.mainWindow().dockWidgetArea(panel)
     for dockWid in dws:
         if dockWid is not panel:
-            if (
-                iface.mainWindow().dockWidgetArea(dockWid) == dockstate
-                and not dockWid.isHidden()
-            ):
+            if iface.mainWindow().dockWidgetArea(dockWid) == dockstate and not dockWid.isHidden():
                 iface.mainWindow().tabifyDockWidget(panel, dockWid)
     panel.raise_()
 
@@ -207,18 +191,14 @@ def getRestrictionLayersList(tableNames):
     return layerTypeList
 
 
-def addRestrictionToProposal(
-    restrictionID, restrictionLayerTableID, proposalID, proposedAction
-):
+def addRestrictionToProposal(restrictionID, restrictionLayerTableID, proposalID, proposedAction):
     """
     Adds restriction to the "RestrictionsInProposals" layer
     """
 
     TOMsMessageLog.logMessage("In addRestrictionToProposal.", level=Qgis.Info)
 
-    restrictionsInProposalsLayer = QgsProject.instance().mapLayersByName(
-        "RestrictionsInProposals"
-    )[0]
+    restrictionsInProposalsLayer = QgsProject.instance().mapLayersByName("RestrictionsInProposals")[0]
 
     newRestrictionsInProposal = QgsFeature(restrictionsInProposalsLayer.fields())
     newRestrictionsInProposal["ProposalID"] = proposalID
@@ -227,8 +207,7 @@ def addRestrictionToProposal(
     newRestrictionsInProposal["ActionOnProposalAcceptance"] = proposedAction.value
 
     TOMsMessageLog.logMessage(
-        "In addRestrictionToProposal. Before record create. RestrictionID: "
-        + str(restrictionID),
+        "In addRestrictionToProposal. Before record create. RestrictionID: " + str(restrictionID),
         level=Qgis.Info,
     )
 

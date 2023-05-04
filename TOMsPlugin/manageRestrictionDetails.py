@@ -152,9 +152,7 @@ class ManageRestrictionDetails:
         # MapTools
         self.geometryInfoMapTool = SelectRestrictionTool()
         self.geometryInfoMapTool.setAction(self.actionSelectRestriction)
-        self.actionSelectRestriction.triggered.connect(
-            lambda: iface.mapCanvas().setMapTool(self.geometryInfoMapTool)
-        )
+        self.actionSelectRestriction.triggered.connect(lambda: iface.mapCanvas().setMapTool(self.geometryInfoMapTool))
 
         # deal with saving label changes ...
         self.restrictionTransaction = None
@@ -167,9 +165,7 @@ class ManageRestrictionDetails:
         self.splitTimer = QTimer()
         self.splitTimer.setSingleShot(True)
         self.splitTimer.setInterval(1000)
-        self.splitTimer.timeout.connect(
-            lambda: self.actionSplitRestriction.setChecked(False)
-        )
+        self.splitTimer.timeout.connect(lambda: self.actionSplitRestriction.setChecked(False))
 
     def enableTOMsToolbarItems(self, restrictionTransaction):
 
@@ -216,11 +212,7 @@ class ManageRestrictionDetails:
         if currRestrictionLayer and currRestrictionLayer.selectedFeatureCount() > 0:
             TOMsMessageLog.logMessage(
                 "In doRestrictionDetails. currLayer: "
-                + str(
-                    currRestrictionLayer.name()
-                    + " Nr feats: "
-                    + str(currRestrictionLayer.selectedFeatureCount())
-                ),
+                + str(currRestrictionLayer.name() + " Nr feats: " + str(currRestrictionLayer.selectedFeatureCount())),
                 level=Qgis.Info,
             )
 
@@ -234,8 +226,7 @@ class ManageRestrictionDetails:
             for currRestriction in selectedRestrictions:
 
                 TOMsMessageLog.logMessage(
-                    "In restrictionFormOpen. currRestrictionLayer: "
-                    + str(currRestrictionLayer.name()),
+                    "In restrictionFormOpen. currRestrictionLayer: " + str(currRestrictionLayer.name()),
                     level=Qgis.Info,
                 )
 
@@ -257,9 +248,7 @@ class ManageRestrictionDetails:
 
         commitStatus = self.restrictionTransaction.rollBackTransactionGroup()
         TOMsMessageLog.logMessage(
-            "In doCreateRestriction. Current transaction rolled back ... {}".format(
-                commitStatus
-            ),
+            "In doCreateRestriction. Current transaction rolled back ... {}".format(commitStatus),
             level=Qgis.Warning,
         )
 
@@ -270,18 +259,13 @@ class ManageRestrictionDetails:
         elif createAction is self.actionCreateLineRestriction:
             currLayer = self.proposalsManager.tableNames.tomsLayerDict.get("Lines")
         elif createAction is self.actionCreatePolygonRestriction:
-            currLayer = self.proposalsManager.tableNames.tomsLayerDict.get(
-                "RestrictionPolygons"
-            )
+            currLayer = self.proposalsManager.tableNames.tomsLayerDict.get("RestrictionPolygons")
         elif createAction is self.actionCreateConstructionLine:
             currLayer = QgsProject.instance().mapLayersByName("ConstructionLines")[0]
         else:
             raise ValueError("Action not found")
 
-        if (
-            self.proposalsManager.currentProposal() == 0
-            and createAction is not self.actionCreateConstructionLine
-        ):
+        if self.proposalsManager.currentProposal() == 0 and createAction is not self.actionCreateConstructionLine:
             QMessageBox.information(
                 iface.mainWindow(),
                 "Information",
@@ -313,9 +297,7 @@ class ManageRestrictionDetails:
 
         commitStatus = self.restrictionTransaction.rollBackTransactionGroup()
         TOMsMessageLog.logMessage(
-            "In doRemoveRestriction. Current transaction rolled back ... {}".format(
-                commitStatus
-            ),
+            "In doRemoveRestriction. Current transaction rolled back ... {}".format(commitStatus),
             level=Qgis.Warning,
         )
 
@@ -332,8 +314,7 @@ class ManageRestrictionDetails:
             if currRestrictionLayer:
 
                 TOMsMessageLog.logMessage(
-                    "In doRemoveRestriction. currLayer: "
-                    + str(currRestrictionLayer.name()),
+                    "In doRemoveRestriction. currLayer: " + str(currRestrictionLayer.name()),
                     level=Qgis.Info,
                 )
 
@@ -344,12 +325,8 @@ class ManageRestrictionDetails:
                     self.restrictionTransaction.startTransactionGroup()
 
                     for currRestriction in selectedRestrictions:
-                        if not self.onRemoveRestriction(
-                            currRestrictionLayer, currRestriction
-                        ):
-                            QMessageBox.information(
-                                None, "ERROR", ("Error deleting restriction ...")
-                            )
+                        if not self.onRemoveRestriction(currRestrictionLayer, currRestriction):
+                            QMessageBox.information(None, "ERROR", ("Error deleting restriction ..."))
                             self.restrictionTransaction.rollBackTransactionGroup()
                             break
 
@@ -388,17 +365,13 @@ class ManageRestrictionDetails:
 
         idxRestrictionID = currRestriction.fields().indexFromName("RestrictionID")
 
-        if restrictionInProposal(
-            currRestriction[idxRestrictionID], currRestrictionLayerID, currProposalID
-        ):
+        if restrictionInProposal(currRestriction[idxRestrictionID], currRestrictionLayerID, currProposalID):
             # check to see whether or not the restriction has an OpenDate. If so, this should not be deleted.
             if currRestriction[currRestriction.fields().indexFromName("OpenDate")]:
                 QMessageBox.information(
                     None,
                     "ERROR",
-                    (
-                        "Something happened that shouldn't ... Error trying to delete restriction"
-                    ),
+                    ("Something happened that shouldn't ... Error trying to delete restriction"),
                 )
                 return False
             # remove the restriction from the RestrictionsInProposals table
@@ -419,8 +392,7 @@ class ManageRestrictionDetails:
                 return False
 
             TOMsMessageLog.logMessage(
-                "In onRemoveRestriction. Deleting restriction id: "
-                + str(currRestriction.id()),
+                "In onRemoveRestriction. Deleting restriction id: " + str(currRestriction.id()),
                 level=Qgis.Info,
             )
             if not currRestrictionLayer.deleteFeature(currRestriction.id()):
@@ -430,9 +402,7 @@ class ManageRestrictionDetails:
             # need to:
             #    - enter the restriction into the table RestrictionInProposals as closed, and
             #
-            TOMsMessageLog.logMessage(
-                "In onRemoveRestriction. Closing existing restriction.", level=Qgis.Info
-            )
+            TOMsMessageLog.logMessage("In onRemoveRestriction. Closing existing restriction.", level=Qgis.Info)
 
             if not addRestrictionToProposal(
                 currRestriction[idxRestrictionID],
@@ -461,9 +431,7 @@ class ManageRestrictionDetails:
                 self.restrictionTransaction.rollBackTransactionGroup()
 
         if self.actionEditRestriction.isChecked():
-            TOMsMessageLog.logMessage(
-                "In actionEditRestriction - tool being activated", level=Qgis.Info
-            )
+            TOMsMessageLog.logMessage("In actionEditRestriction - tool being activated", level=Qgis.Info)
 
             # Get the current proposal from the session variables
             if self.proposalsManager.currentProposal() <= 0:
@@ -478,8 +446,7 @@ class ManageRestrictionDetails:
 
             if currRestrictionLayer and currRestrictionLayer.selectedFeatureCount() > 0:
                 TOMsMessageLog.logMessage(
-                    "In doEditRestriction. currLayer: "
-                    + str(currRestrictionLayer.name()),
+                    "In doEditRestriction. currLayer: " + str(currRestrictionLayer.name()),
                     level=Qgis.Info,
                 )
                 self.restrictionTransaction.startTransactionGroup()
@@ -515,13 +482,9 @@ class ManageRestrictionDetails:
             if self.restrictionTransaction.currTransactionGroup.modified():
                 checkEditedGeometries(self.proposalsManager.currentProposal())
             self.restrictionTransaction.commitTransactionGroup()  # to remove edit mode
-            setupPanelTabs(
-                iface.mainWindow().findChild(QDockWidget, "ProposalPanelDockWidgetBase")
-            )
+            setupPanelTabs(iface.mainWindow().findChild(QDockWidget, "ProposalPanelDockWidgetBase"))
 
-            TOMsMessageLog.logMessage(
-                "In doEditRestriction - tool deactivated", level=Qgis.Info
-            )
+            TOMsMessageLog.logMessage("In doEditRestriction - tool deactivated", level=Qgis.Info)
 
         TOMsMessageLog.logMessage("In doEditRestriction - leaving", level=Qgis.Info)
 
@@ -531,9 +494,7 @@ class ManageRestrictionDetails:
         currRestrictionLayer = iface.activeLayer()
 
         if self.actionSplitRestriction.isChecked():
-            TOMsMessageLog.logMessage(
-                "In actionSplitRestriction - tool being activated", level=Qgis.Info
-            )
+            TOMsMessageLog.logMessage("In actionSplitRestriction - tool being activated", level=Qgis.Info)
 
             # Get the current proposal from the session variables
             if self.proposalsManager.currentProposal() <= 0:
@@ -548,16 +509,13 @@ class ManageRestrictionDetails:
 
             if currRestrictionLayer and currRestrictionLayer.selectedFeatureCount() > 0:
                 TOMsMessageLog.logMessage(
-                    "In doSplitRestriction. currLayer: "
-                    + str(currRestrictionLayer.name()),
+                    "In doSplitRestriction. currLayer: " + str(currRestrictionLayer.name()),
                     level=Qgis.Info,
                 )
                 self.restrictionTransaction.startTransactionGroup()
                 iface.actionSplitFeatures().trigger()
                 self.mapTool = iface.mapCanvas().mapTool()
-                currRestrictionLayer.editBuffer().featureAdded.connect(
-                    self.stopSplitting
-                )
+                currRestrictionLayer.editBuffer().featureAdded.connect(self.stopSplitting)
                 advancedDigitizingPanel = iface.cadDockWidget()
                 advancedDigitizingPanel.setVisible(True)
                 advancedDigitizingPanel.enable()
@@ -581,13 +539,9 @@ class ManageRestrictionDetails:
             if self.restrictionTransaction.currTransactionGroup.modified():
                 checkSplitGeometries(self.proposalsManager.currentProposal())
             self.restrictionTransaction.commitTransactionGroup()  # to remove edit mode
-            setupPanelTabs(
-                iface.mainWindow().findChild(QDockWidget, "ProposalPanelDockWidgetBase")
-            )
+            setupPanelTabs(iface.mainWindow().findChild(QDockWidget, "ProposalPanelDockWidgetBase"))
 
-            TOMsMessageLog.logMessage(
-                "In doSplitRestriction - tool deactivated", level=Qgis.Info
-            )
+            TOMsMessageLog.logMessage("In doSplitRestriction - tool deactivated", level=Qgis.Info)
 
         TOMsMessageLog.logMessage("In doSplitRestriction - leaving", level=Qgis.Info)
 

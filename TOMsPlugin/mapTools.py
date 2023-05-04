@@ -99,18 +99,12 @@ class CreateRestrictionTool(QgsMapToolDigitizeFeature):
             feature["ParkingTariffArea"] = currentPTA
 
             try:
-                payParkingAreasLayer = QgsProject.instance().mapLayersByName(
-                    "PayParkingAreas"
-                )[0]
-                currPayParkingArea = GenerateGeometryUtils.getPolygonForRestriction(
-                    feature, payParkingAreasLayer
-                )
+                payParkingAreasLayer = QgsProject.instance().mapLayersByName("PayParkingAreas")[0]
+                currPayParkingArea = GenerateGeometryUtils.getPolygonForRestriction(feature, payParkingAreasLayer)
                 feature["PayParkingAreaID"] = currPayParkingArea.attribute("Code")
             except Exception as e:
                 TOMsMessageLog.logMessage(
-                    "In setDefaultRestrictionDetails:payParkingArea: error: {}".format(
-                        e
-                    ),
+                    "In setDefaultRestrictionDetails:payParkingArea: error: {}".format(e),
                     level=Qgis.Info,
                 )
 
@@ -162,9 +156,7 @@ class SelectRestrictionTool(QgsMapToolIdentify):
 
         # We want to search with a radius of <deltaSearchRadius> meters more than the default radius
         if self.canvas().mapUnits() != QgsUnitTypes.Standard:
-            QMessageBox.critical(
-                None, "Errror", "Need a map with a standard measurement unit"
-            )
+            QMessageBox.critical(None, "Errror", "Need a map with a standard measurement unit")
             self.canvas().unsetMapTool(self)
             return
 
@@ -174,24 +166,18 @@ class SelectRestrictionTool(QgsMapToolIdentify):
 
         # Find layers
         try:
-            restrictionLayers = QgsProject.instance().mapLayersByName(
-                "RestrictionLayers"
-            )[0]
+            restrictionLayers = QgsProject.instance().mapLayersByName("RestrictionLayers")[0]
         except IndexError:
-            QMessageBox.critical(
-                None, "Errror", "RestrictionLayers layer is not loaded"
-            )
+            QMessageBox.critical(None, "Errror", "RestrictionLayers layer is not loaded")
             self.canvas().unsetMapTool(self)
             return
 
         self.layers = []
         for layerDetails in restrictionLayers.getFeatures():
-            if (
-                layerDetails.attribute("Code") >= 6
-            ):  # CPZs, PTAs  - TODO: Need to improve
-                allowZoneEditing = QgsExpressionContextUtils.projectScope(
-                    QgsProject.instance()
-                ).variable("AllowZoneEditing")
+            if layerDetails.attribute("Code") >= 6:  # CPZs, PTAs  - TODO: Need to improve
+                allowZoneEditing = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable(
+                    "AllowZoneEditing"
+                )
                 if allowZoneEditing != "True":
                     continue
                 TOMsMessageLog.logMessage(
@@ -199,21 +185,13 @@ class SelectRestrictionTool(QgsMapToolIdentify):
                     level=Qgis.Info,
                 )
 
-            self.layers.append(
-                QgsProject.instance().mapLayersByName(
-                    layerDetails.attribute("RestrictionLayerName")
-                )[0]
-            )
+            self.layers.append(QgsProject.instance().mapLayersByName(layerDetails.attribute("RestrictionLayerName"))[0])
 
     def showMapTip(self):
         pos = self.canvas().mouseLastXY()
         textList = []
         for identifyResult in self.process(pos):
-            expContext = QgsExpressionContext(
-                QgsExpressionContextUtils.globalProjectLayerScopes(
-                    identifyResult.mLayer
-                )
-            )
+            expContext = QgsExpressionContext(QgsExpressionContextUtils.globalProjectLayerScopes(identifyResult.mLayer))
             expContext.setFeature(identifyResult.mFeature)
             exp = QgsExpression(identifyResult.mLayer.displayExpression())
             textList.append(exp.evaluate(expContext))
@@ -247,9 +225,7 @@ class SelectRestrictionTool(QgsMapToolIdentify):
 
         # First find features within default search radius + delta
         self.setCanvasPropertiesOverrides(defaultSearchRadius + self.deltaSearchRadius)
-        largeResults = self.identify(
-            pos.x(), pos.y(), self.layers, QgsMapToolIdentify.TopDownAll
-        )
+        largeResults = self.identify(pos.x(), pos.y(), self.layers, QgsMapToolIdentify.TopDownAll)
 
         # Switch line geometries (i.e. bays and restriction lines) into generated symbols
         # and keep features which intersects the default search radius
@@ -260,10 +236,7 @@ class SelectRestrictionTool(QgsMapToolIdentify):
             if identifyResult.mFeature.geometry().type() == QgsWkbTypes.LineGeometry:
                 expContext.setFeature(identifyResult.mFeature)
                 identifyResult.mFeature.setGeometry(exp.evaluate(expContext))
-            if (
-                identifyResult.mFeature.geometry().distance(point)
-                <= defaultSearchRadius
-            ):
+            if identifyResult.mFeature.geometry().distance(point) <= defaultSearchRadius:
                 finalResults.append(identifyResult)
 
         return finalResults
@@ -285,15 +258,11 @@ def checkSplitGeometries(currentProposal):
     modifiedFeature = origLayer.getFeature(featList[0])
     newFeatures = list(origLayer.editBuffer().addedFeatures().values())
 
-    restrictionsInProposalsLayer = QgsProject.instance().mapLayersByName(
-        "RestrictionsInProposals"
-    )[0]
+    restrictionsInProposalsLayer = QgsProject.instance().mapLayersByName("RestrictionsInProposals")[0]
     restrictionsLayers = QgsProject.instance().mapLayersByName("RestrictionLayers")[0]
     currRestrictionLayerID = next(
         restrictionsLayers.getFeatures(
-            QgsFeatureRequest().setFilterExpression(
-                f'"RestrictionLayerName" = \'{origLayer.name().split(".")[0]}\''
-            )
+            QgsFeatureRequest().setFilterExpression(f'"RestrictionLayerName" = \'{origLayer.name().split(".")[0]}\'')
         )
     ).attribute("code")
 
@@ -311,14 +280,9 @@ def checkSplitGeometries(currentProposal):
         newRestrictionInProposal["ProposalID"] = currentProposal
         newRestrictionInProposal["RestrictionID"] = restrictionId
         newRestrictionInProposal["RestrictionTableID"] = currRestrictionLayerID
-        newRestrictionInProposal[
-            "ActionOnProposalAcceptance"
-        ] = RestrictionAction.OPEN.value
+        newRestrictionInProposal["ActionOnProposalAcceptance"] = RestrictionAction.OPEN.value
         if not restrictionsInProposalsLayer.addFeature(newRestrictionInProposal):
-            raise Exception(
-                "Unable to add feature\n"
-                + "\n".join(restrictionsInProposalsLayer.commitErrors())
-            )
+            raise Exception("Unable to add feature\n" + "\n".join(restrictionsInProposalsLayer.commitErrors()))
 
     # Check if the split feature was in the current proposal
     restrictionFound = (
@@ -350,9 +314,7 @@ def checkSplitGeometries(currentProposal):
         newFeature["OpenDate"] = None
         newFeature["CloseDate"] = None
         if not origLayer.addFeature(newFeature):
-            raise Exception(
-                "Unable to add feature\n" + "\n".join(origLayer.commitErrors())
-            )
+            raise Exception("Unable to add feature\n" + "\n".join(origLayer.commitErrors()))
 
         for action, currRestrictionId in [
             (RestrictionAction.CLOSE, modifiedFeature["RestrictionID"]),
@@ -365,16 +327,11 @@ def checkSplitGeometries(currentProposal):
             newRestrictionInProposal["RestrictionTableID"] = currRestrictionLayerID
             newRestrictionInProposal["ActionOnProposalAcceptance"] = action.value
             if not restrictionsInProposalsLayer.addFeature(newRestrictionInProposal):
-                raise Exception(
-                    "Unable to add feature\n"
-                    + "\n".join(restrictionsInProposalsLayer.commitErrors())
-                )
+                raise Exception("Unable to add feature\n" + "\n".join(restrictionsInProposalsLayer.commitErrors()))
 
         unmodifiedLayer = QgsVectorLayer(origLayer.source(), "", "postgres")
         originalGeometry = list(
-            unmodifiedLayer.getFeatures(
-                f'"RestrictionID" = \'{modifiedFeature["RestrictionID"]}\''
-            )
+            unmodifiedLayer.getFeatures(f'"RestrictionID" = \'{modifiedFeature["RestrictionID"]}\'')
         )[0].geometry()
         origLayer.changeGeometry(modifiedFeature.id(), originalGeometry)
 
@@ -394,9 +351,7 @@ def checkEditedGeometries(currentProposal):
     TOMsMessageLog.logMessage("In checkEditedGeometries ... ", level=Qgis.Info)
     origLayer = iface.activeLayer()
 
-    restrictionsInProposalsLayer = QgsProject.instance().mapLayersByName(
-        "RestrictionsInProposals"
-    )[0]
+    restrictionsInProposalsLayer = QgsProject.instance().mapLayersByName("RestrictionsInProposals")[0]
     restrictionsLayers = QgsProject.instance().mapLayersByName("RestrictionLayers")[0]
 
     featList = list(origLayer.editBuffer().changedGeometries().keys())
@@ -406,9 +361,7 @@ def checkEditedGeometries(currentProposal):
     currRestriction = origLayer.getFeature(featId)
     currRestrictionLayerID = next(
         restrictionsLayers.getFeatures(
-            QgsFeatureRequest().setFilterExpression(
-                f'"RestrictionLayerName" = \'{origLayer.name().split(".")[0]}\''
-            )
+            QgsFeatureRequest().setFilterExpression(f'"RestrictionLayerName" = \'{origLayer.name().split(".")[0]}\'')
         )
     ).attribute("code")
     restrictionFound = (
@@ -441,15 +394,11 @@ def checkEditedGeometries(currentProposal):
         newFeature["OpenDate"] = None
         newFeature["GeometryID"] = None
         if not origLayer.addFeature(newFeature):
-            raise Exception(
-                "Unable to add feature\n" + "\n".join(origLayer.commitErrors())
-            )
+            raise Exception("Unable to add feature\n" + "\n".join(origLayer.commitErrors()))
 
         unmodifiedLayer = QgsVectorLayer(origLayer.source(), "", "postgres")
         originalGeometry = list(
-            unmodifiedLayer.getFeatures(
-                f'"RestrictionID" = \'{currRestriction["RestrictionID"]}\''
-            )
+            unmodifiedLayer.getFeatures(f'"RestrictionID" = \'{currRestriction["RestrictionID"]}\'')
         )[0].geometry()
         origLayer.changeGeometry(featId, originalGeometry)
 
@@ -464,10 +413,7 @@ def checkEditedGeometries(currentProposal):
             newRestrictionInProposal["RestrictionTableID"] = currRestrictionLayerID
             newRestrictionInProposal["ActionOnProposalAcceptance"] = action.value
             if not restrictionsInProposalsLayer.addFeature(newRestrictionInProposal):
-                raise Exception(
-                    "Unable to add feature\n"
-                    + "\n".join(restrictionsInProposalsLayer.commitErrors())
-                )
+                raise Exception("Unable to add feature\n" + "\n".join(restrictionsInProposalsLayer.commitErrors()))
 
         # If there are label layers, update those so that new feature is available
         layerDetails = TOMsLabelLayerNames(origLayer)

@@ -47,9 +47,7 @@ class TOMsParams(QObject):
 
     def getParams(self):
 
-        TOMsMessageLog.logMessage(
-            "In TOMsParams.getParams ...", level=TOMsMessageLog.DEBUG
-        )
+        TOMsMessageLog.logMessage("In TOMsParams.getParams ...", level=TOMsMessageLog.DEBUG)
         found = True
 
         # Check for project being open
@@ -71,9 +69,7 @@ class TOMsParams(QObject):
 
                 currParam = None
                 try:
-                    currParam = QgsExpressionContextUtils.projectScope(
-                        QgsProject.instance()
-                    ).variable(param)
+                    currParam = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable(param)
                 except Exception:
                     QMessageBox.information(
                         None,
@@ -84,10 +80,7 @@ class TOMsParams(QObject):
                 if len(str(currParam)) > 0:
                     self.tomsParamsDict[param] = currParam
                     TOMsMessageLog.logMessage(
-                        "In TOMsParams.getParams ... set "
-                        + str(param)
-                        + " as "
-                        + str(currParam),
+                        "In TOMsParams.getParams ... set " + str(param) + " as " + str(currParam),
                         level=TOMsMessageLog.DEBUG,
                     )
                 else:
@@ -120,9 +113,7 @@ class TOMsConfigFile(QObject):
     def __init__(self):
         super().__init__()
 
-        TOMsMessageLog.logMessage(
-            "In TOMsConfigFile.init ...", level=TOMsMessageLog.DEBUG
-        )
+        TOMsMessageLog.logMessage("In TOMsConfigFile.init ...", level=TOMsMessageLog.DEBUG)
 
         self.config = configparser.ConfigParser()
 
@@ -135,14 +126,10 @@ class TOMsConfigFile(QObject):
         try:
             configPath = os.environ.get("TOMs_CONFIG_PATH")
         except Exception:
-            TOMsMessageLog.logMessage(
-                "In getTOMsConfigFile. TOMs_CONFIG_PATH not found ...", level=Qgis.Info
-            )
+            TOMsMessageLog.logMessage("In getTOMsConfigFile. TOMs_CONFIG_PATH not found ...", level=Qgis.Info)
 
         if configPath is None:
-            configPath = QgsExpressionContextUtils.projectScope(
-                QgsProject.instance()
-            ).variable("project_home")
+            configPath = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("project_home")
 
         if configPath == NULL:
             QMessageBox.information(
@@ -194,9 +181,7 @@ class TOMsConfigFile(QObject):
             item = self.config[section][value]
         except KeyError:
             TOMsMessageLog.logMessage(
-                "In getTOMsConfigElement. not able to find: {}:{}".format(
-                    section, value
-                ),
+                "In getTOMsConfigElement. not able to find: {}:{}".format(section, value),
                 level=Qgis.Info,
             )
 
@@ -275,17 +260,13 @@ class TOMsLayers(QObject):
         if found:
             for layer in self.tomsLayerList:
                 if QgsProject.instance().mapLayersByName(layer):
-                    self.tomsLayerDict[layer] = QgsProject.instance().mapLayersByName(
-                        layer
-                    )[0]
+                    self.tomsLayerDict[layer] = QgsProject.instance().mapLayersByName(layer)[0]
                     # set paths for forms
                     layerEditFormConfig = self.tomsLayerDict[layer].editFormConfig()
 
                     if len(layerEditFormConfig.initFilePath()) > 0:
                         TOMsMessageLog.logMessage(
-                            "In TOMsLayers:setLayers. cleaning useless initFilePath for layer {}...".format(
-                                layer
-                            ),
+                            "In TOMsLayers:setLayers. cleaning useless initFilePath for layer {}...".format(layer),
                             level=Qgis.Info,
                         )
                         layerEditFormConfig.setInitFilePath("")
@@ -294,41 +275,29 @@ class TOMsLayers(QObject):
                     uiPath = layerEditFormConfig.uiForm()
                     if len(uiPath) > 0:
                         TOMsMessageLog.logMessage(
-                            "In TOMsLayers:setLayers. current ui_path for layer {} is {} ...".format(
-                                layer, uiPath
-                            ),
+                            "In TOMsLayers:setLayers. current ui_path for layer {} is {} ...".format(layer, uiPath),
                             level=Qgis.Info,
                         )
                         # try to get basename - doesn't seem to work on Linux
                         # base_ui_path = os.path.basename(ui_path)
-                        pathAbsolute = os.path.abspath(
-                            os.path.join(self.formPath, os.path.basename(uiPath))
-                        )
+                        pathAbsolute = os.path.abspath(os.path.join(self.formPath, os.path.basename(uiPath)))
                         if not os.path.isfile(pathAbsolute):
                             TOMsMessageLog.logMessage(
-                                "In TOMsLayers:setLayers. form path not found for layer {} ...".format(
-                                    layer
-                                ),
+                                "In TOMsLayers:setLayers. form path not found for layer {} ...".format(layer),
                                 level=Qgis.Warning,
                             )
                         else:
                             TOMsMessageLog.logMessage(
-                                "In TOMsLayers:setLayers. setting new path for form {} ...".format(
-                                    pathAbsolute
-                                ),
+                                "In TOMsLayers:setLayers. setting new path for form {} ...".format(pathAbsolute),
                                 level=Qgis.Info,
                             )
                             layerEditFormConfig.setUiForm(pathAbsolute)
-                            self.tomsLayerDict[layer].setEditFormConfig(
-                                layerEditFormConfig
-                            )
+                            self.tomsLayerDict[layer].setEditFormConfig(layerEditFormConfig)
 
                             # TODO: may need to reinstate original values here - so save them somewhere useful
                     else:
                         TOMsMessageLog.logMessage(
-                            "In TOMsLayers:setLayers. no ui_path for layer {}".format(
-                                layer
-                            ),
+                            "In TOMsLayers:setLayers. no ui_path for layer {}".format(layer),
                             level=Qgis.Info,
                         )
 
@@ -348,32 +317,24 @@ class TOMsLayers(QObject):
 
     def removePathFromLayerForms(self):
 
-        TOMsMessageLog.logMessage(
-            "In TOMSLayers.removePathFromLayerForms ...", level=Qgis.Info
-        )
+        TOMsMessageLog.logMessage("In TOMSLayers.removePathFromLayerForms ...", level=Qgis.Info)
 
         # Check for project being open
         project = QgsProject.instance()
 
         if len(project.fileName()) == 0:
-            QMessageBox.information(
-                iface.mainWindow(), "ERROR", ("Project not yet open")
-            )
+            QMessageBox.information(iface.mainWindow(), "ERROR", ("Project not yet open"))
 
         else:
 
             for layer in self.tomsLayerList:
                 if QgsProject.instance().mapLayersByName(layer):
-                    self.tomsLayerDict[layer] = QgsProject.instance().mapLayersByName(
-                        layer
-                    )[0]
+                    self.tomsLayerDict[layer] = QgsProject.instance().mapLayersByName(layer)[0]
                     # set paths for forms
                     layerEditFormConfig = self.tomsLayerDict[layer].editFormConfig()
                     uiPath = layerEditFormConfig.uiForm()
                     TOMsMessageLog.logMessage(
-                        "In TOMsLayers:removePathFromLayerForms. ui_path for layer {} is {} ...".format(
-                            layer, uiPath
-                        ),
+                        "In TOMsLayers:removePathFromLayerForms. ui_path for layer {} is {} ...".format(layer, uiPath),
                         level=Qgis.Info,
                     )
                     if len(self.formPath) > 0 and len(uiPath) > 0:
@@ -405,9 +366,7 @@ class TOMsLabelLayerNames(QObject):
         )
 
         self.labelLayerName = self.setCurrLabelLayerNames(currRestrictionLayer)
-        self.labelLeaderLayersNames = self.setCurrLabelLeaderLayerNames(
-            currRestrictionLayer
-        )
+        self.labelLeaderLayersNames = self.setCurrLabelLeaderLayerNames(currRestrictionLayer)
 
     def setCurrLabelLayerNames(self, currRestrictionLayer):
         # given a layer return the associated layer with label geometry

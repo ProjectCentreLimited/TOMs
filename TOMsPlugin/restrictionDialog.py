@@ -78,9 +78,7 @@ class RestrictionDialogWrapper:
         if self.layer.name() == "Bays":
             defaultPta, _, _ = GenerateGeometryUtils.getCurrentPTADetails(self.feature)
             self.checkElectricVehicleChargingPlace(defaultPta)
-            self.dialog.findChild(
-                QComboBox, "RestrictionTypeID"
-            ).currentTextChanged.connect(
+            self.dialog.findChild(QComboBox, "RestrictionTypeID").currentTextChanged.connect(
                 functools.partial(
                     self.checkElectricVehicleChargingPlace,
                     defaultPta,
