@@ -44,7 +44,6 @@ class TOMsProposalsManager(QObject):
     # Signal will be emitted when TOMs tools are activated
 
     def __init__(self):  # pylint: disable=super-init-not-called
-
         QObject.__init__(self)
 
         self.tableNames = TOMsLayers()
@@ -57,7 +56,6 @@ class TOMsProposalsManager(QObject):
         self.currProposalObject = TOMsProposal(self)
 
         self.setTOMsActivated: int = False
-        self.proposalsLayer = None
 
     def date(self):
         """
@@ -81,9 +79,7 @@ class TOMsProposalsManager(QObject):
         """
         Returns the current proposal
         """
-        currProposal = QgsExpressionContextUtils.projectScope(
-            QgsProject.instance()
-        ).variable("CurrentProposal")
+        currProposal = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("CurrentProposal")
         if not currProposal:
             currProposal = 0
         return int(currProposal)
@@ -108,9 +104,7 @@ class TOMsProposalsManager(QObject):
             f"Current proposal changed to {value}",
             level=Qgis.Info,
         )
-        QgsExpressionContextUtils.setProjectVariable(
-            QgsProject.instance(), "CurrentProposal", value
-        )
+        QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), "CurrentProposal", value)
 
         self.currProposalObject.setProposal(self.currentProposal())
 
@@ -144,16 +138,11 @@ class TOMsProposalsManager(QObject):
             layerFilterString = filterString
 
             if currProposalID > 0:  # need to consider a proposal
-
-                restrictionsToClose = (
-                    self.currProposalObject.getRestrictionsToCloseForLayer(layerID)
-                )
+                restrictionsToClose = self.currProposalObject.getRestrictionsToCloseForLayer(layerID)
                 if len(restrictionsToClose) > 0:
                     layerFilterString = f'{layerFilterString} AND "RestrictionID" NOT IN ({restrictionsToClose}))'
 
-                restrictionsToOpen = (
-                    self.currProposalObject.getRestrictionsToOpenForLayer(layerID)
-                )
+                restrictionsToOpen = self.currProposalObject.getRestrictionsToOpenForLayer(layerID)
                 if len(restrictionsToOpen) > 0:
                     layerFilterString = f' "RestrictionID"  IN ({restrictionsToOpen}) OR ({layerFilterString})'
 
@@ -168,9 +157,7 @@ class TOMsProposalsManager(QObject):
                 level=TOMsMessageLog.DEBUG,
             )
             try:
-                self.tableNames.getLayer(layerName).dataProvider().setSubsetString(
-                    layerFilterString
-                )
+                self.tableNames.getLayer(layerName).dataProvider().setSubsetString(layerFilterString)
             except Exception as e:
                 TOMsMessageLog.logMessage(
                     f"updateMapCanvas: error in layer {layerName}: {e}",
@@ -211,9 +198,9 @@ class TOMsProposalsManager(QObject):
                     level=TOMsMessageLog.DEBUG,
                 )
                 try:
-                    QgsProject.instance().mapLayersByName(labelLayersName)[
-                        0
-                    ].dataProvider().setSubsetString(layerFilterString)
+                    QgsProject.instance().mapLayersByName(labelLayersName)[0].dataProvider().setSubsetString(
+                        layerFilterString
+                    )
                 except Exception as e:
                     TOMsMessageLog.logMessage(
                         f"updateMapCanvas: error in layer {labelLayersName}: {e}",
@@ -221,23 +208,17 @@ class TOMsProposalsManager(QObject):
                     )
                     return False
 
-        TOMsMessageLog.logMessage(
-            "Finished updateMapCanvas ... ", level=TOMsMessageLog.DEBUG
-        )
+        TOMsMessageLog.logMessage("Finished updateMapCanvas ... ", level=TOMsMessageLog.DEBUG)
 
         return True
 
     def clearRestrictionFilters(self):
         # This is to be used at the close of the plugin to clear any filters that have been set
 
-        TOMsMessageLog.logMessage(
-            "Entering clearRestrictionFilters ... ", level=Qgis.Info
-        )
+        TOMsMessageLog.logMessage("Entering clearRestrictionFilters ... ", level=Qgis.Info)
 
-        for (_, layerName) in getRestrictionLayersList(self.tableNames):
-            TOMsMessageLog.logMessage(
-                f"Clearing filter for layer: {layerName}", level=Qgis.Info
-            )
+        for _, layerName in getRestrictionLayersList(self.tableNames):
+            TOMsMessageLog.logMessage(f"Clearing filter for layer: {layerName}", level=Qgis.Info)
             try:
                 self.tableNames.getLayer(layerName).dataProvider().setSubsetString(None)
             except Exception as e:
@@ -280,9 +261,7 @@ class TOMsProposalsManager(QObject):
                     level=Qgis.Info,
                 )
                 try:
-                    QgsProject.instance().mapLayersByName(labelLayersName)[
-                        0
-                    ].dataProvider().setSubsetString(None)
+                    QgsProject.instance().mapLayersByName(labelLayersName)[0].dataProvider().setSubsetString(None)
                 except Exception as e:
                     TOMsMessageLog.logMessage(
                         f"clearRestrictionFilters: error in layer {labelLayersName}: {e}",
@@ -292,30 +271,19 @@ class TOMsProposalsManager(QObject):
 
         return True
 
-    def getProposalsListWithStatus(self, proposalStatus=None):
+    def getProposals(self, proposalStatus=None):
+        """getProposals.
 
-        self.proposalsLayer = self.tableNames.getLayer("Proposals")
+        Returns the list of all proposals in the proposals layer.
 
-        query = ""
+        :param proposalStatus: [optional] the enum of type constants.ProposalStatus
+            corresponding to the desired status filter
+        """
 
-        if proposalStatus is not None:
-            query = f'"ProposalStatusID" = {proposalStatus.value}'
-
-        TOMsMessageLog.logMessage(
-            "In __getProposalsListWithStatus. query: " + str(query), level=Qgis.Info
-        )
-        request = QgsFeatureRequest().setFilterExpression(query)
-
-        proposalsList = []
-        for proposalDetails in self.proposalsLayer.getFeatures(request):
-            proposalsList.append(
-                [
-                    proposalDetails["ProposalID"],
-                    proposalDetails["ProposalTitle"],
-                    proposalDetails["ProposalStatusID"],
-                    proposalDetails["ProposalOpenDate"],
-                    proposalDetails,
-                ]
+        return list(
+            self.tableNames.getLayer("Proposals").getFeatures(
+                QgsFeatureRequest().setFilterExpression(
+                    "" if proposalStatus is None else f'"ProposalStatusID" = {proposalStatus.value}'
+                )
             )
-
-        return proposalsList
+        )

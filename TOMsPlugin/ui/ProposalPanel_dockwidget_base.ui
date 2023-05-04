@@ -43,21 +43,21 @@
      </widget>
     </item>
     <item row="1" column="1">
-     <widget class="QComboBox" name="cb_ProposalsList">
+     <widget class="QComboBox" name="cbProposalsList">
       <property name="insertPolicy">
        <enum>QComboBox::InsertAlphabetically</enum>
       </property>
      </widget>
     </item>
     <item row="2" column="0">
-     <widget class="QPushButton" name="btn_ViewProposal">
+     <widget class="QPushButton" name="btnViewProposal">
       <property name="text">
        <string>View proposal</string>
       </property>
      </widget>
     </item>
     <item row="2" column="1">
-     <widget class="QPushButton" name="btn_NewProposal">
+     <widget class="QPushButton" name="btnNewProposal">
       <property name="text">
        <string>New proposal</string>
       </property>

@@ -29,9 +29,7 @@ from .tomsTile import TOMsTile
 class TOMsProposal(QObject):
     """Class to represent a proposal"""
 
-    def __init__(
-        self, proposalsManager, proposalNr=None
-    ):  # pylint: disable=super-init-not-called
+    def __init__(self, proposalsManager, proposalNr=None):  # pylint: disable=super-init-not-called
         QObject.__init__(self)
         TOMsMessageLog.logMessage("In TOMsProposal:init. ... ", level=Qgis.Info)
         self.thisProposal = None
@@ -40,9 +38,7 @@ class TOMsProposal(QObject):
 
         self.setProposalsLayer()
 
-        TOMsMessageLog.logMessage(
-            "In TOMsProposal:init. ... proposals layer set ", level=Qgis.Info
-        )
+        TOMsMessageLog.logMessage("In TOMsProposal:init. ... proposals layer set ", level=Qgis.Info)
 
         if proposalNr is not None:
             self.setProposal(proposalNr)
@@ -57,22 +53,12 @@ class TOMsProposal(QObject):
             )
             return False
 
-        self.idxProposalTitle = self.proposalsLayer.fields().indexFromName(
-            "ProposalTitle"
-        )
-        self.idxCreateDate = self.proposalsLayer.fields().indexFromName(
-            "ProposalCreateDate"
-        )
-        self.idxOpenDate = self.proposalsLayer.fields().indexFromName(
-            "ProposalOpenDate"
-        )
-        self.idxProposalStatusID = self.proposalsLayer.fields().indexFromName(
-            "ProposalStatusID"
-        )
+        self.idxProposalTitle = self.proposalsLayer.fields().indexFromName("ProposalTitle")
+        self.idxCreateDate = self.proposalsLayer.fields().indexFromName("ProposalCreateDate")
+        self.idxOpenDate = self.proposalsLayer.fields().indexFromName("ProposalOpenDate")
+        self.idxProposalStatusID = self.proposalsLayer.fields().indexFromName("ProposalStatusID")
 
-        TOMsMessageLog.logMessage(
-            "In TOMsProposal:setProposalsLayer... ", level=Qgis.Info
-        )
+        TOMsMessageLog.logMessage("In TOMsProposal:setProposalsLayer... ", level=Qgis.Info)
 
         return True
 
@@ -82,9 +68,7 @@ class TOMsProposal(QObject):
         self.setProposalsLayer()
 
         if proposalID is not None:
-            request = QgsFeatureRequest().setFilterExpression(
-                f'"ProposalID" = {proposalID}'
-            )
+            request = QgsFeatureRequest().setFilterExpression(f'"ProposalID" = {proposalID}')
             for proposal in self.proposalsLayer.getFeatures(request):
                 self.thisProposal = proposal  # make assumption that only one row
                 return True
@@ -100,9 +84,7 @@ class TOMsProposal(QObject):
         self.thisProposal[self.idxProposalTitle] = ""  # str(uuid.uuid4())
         self.thisProposal[self.idxCreateDate] = self.proposalsManager.date()
         self.thisProposal[self.idxOpenDate] = self.proposalsManager.date()
-        self.thisProposal[
-            self.idxProposalStatusID
-        ] = ProposalStatus.IN_PREPARATION.value
+        self.thisProposal[self.idxProposalStatusID] = ProposalStatus.IN_PREPARATION.value
 
         self.proposalsLayer.addFeature(self.thisProposal)  # TH (added for v3)
 
@@ -126,72 +108,47 @@ class TOMsProposal(QObject):
         return self.thisProposalNr
 
     def getProposalTitle(self):
-        return self.thisProposal.attribute("ProposalTitle")
-
-    def setProposalTitle(self, value):
-        return self.thisProposal.setAttribute("ProposalTitle", value)
+        return self.thisProposal["ProposalTitle"]
 
     def getProposalStatusID(self):
-        return self.thisProposal.attribute("ProposalStatusID")
+        return self.thisProposal["ProposalStatusID"]
 
     def setProposalStatusID(self, value):
-        # result = self.thisProposal.setAttribute("ProposalStatusID", value)
-        # this does not update. TODO: Understand why
-        result = self.proposalsLayer.changeAttributeValue(
-            self.thisProposal.id(), self.idxProposalStatusID, value
-        )  # this does update ??
+        result = self.proposalsLayer.changeAttributeValue(self.thisProposal.id(), self.idxProposalStatusID, value)
         return result
 
     def getProposalOpenDate(self):
-        return self.thisProposal.attribute("ProposalOpenDate")
+        return self.thisProposal["ProposalOpenDate"]
 
     def setProposalOpenDate(self, value):
-        return self.thisProposal.setAttribute("ProposalOpenDate", value)
+        self.thisProposal["ProposalOpenDate"] = value
 
     def getProposalCreateDate(self):
-        return self.thisProposal.attribute("ProposalCreateDate")
-
-    def setProposalCreateDate(self, value):
-        return self.thisProposal.setAttribute("ProposalCreateDate", value)
+        return self.thisProposal["ProposalCreateDate"]
 
     def getRestrictionsToOpenForLayer(self, layer):
-        return self.__getRestrictionsListForLayerForAction(
-            layer, RestrictionAction.OPEN
-        )
+        return self.__getRestrictionsListForLayerForAction(layer, RestrictionAction.OPEN)
 
     def getRestrictionsToCloseForLayer(self, layer):
-        return self.__getRestrictionsListForLayerForAction(
-            layer, RestrictionAction.CLOSE
-        )
+        return self.__getRestrictionsListForLayerForAction(layer, RestrictionAction.CLOSE)
 
-    def __getRestrictionsListForLayerForAction(
-        self, layer, actionOnAcceptance=None
-    ):  # pylint: disable=invalid-name
-        restrictionList = self.__getRestrictionsInProposalForLayerForAction(
-            layer, actionOnAcceptance
-        )
-        return ",".join(
-            "'{restrictionID}'".format(restrictionID=restrictionID)
-            for restrictionID, _ in restrictionList
-        )
+    def __getRestrictionsListForLayerForAction(self, layer, actionOnAcceptance=None):  # pylint: disable=invalid-name
+        restrictionList = self.__getRestrictionsInProposalForLayerForAction(layer, actionOnAcceptance)
+        return ",".join("'{restrictionID}'".format(restrictionID=restrictionID) for restrictionID, _ in restrictionList)
 
     def __getRestrictionsInProposalForLayerForAction(  # pylint: disable=invalid-name
         self, layerID, actionOnAcceptance=None
     ):
         # Will return a list of restrictions within a Proposal subject to actionOnAcceptance
 
-        self.restrictionsInProposals = self.proposalsManager.tableNames.getLayer(
-            "RestrictionsInProposals"
+        self.restrictionsInProposals = self.proposalsManager.tableNames.getLayer("RestrictionsInProposals")
+
+        query = ('"ProposalID" = {proposalID} AND "RestrictionTableID" = {layerID}').format(
+            proposalID=str(self.thisProposalNr), layerID=str(layerID)
         )
 
-        query = (
-            '"ProposalID" = {proposalID} AND "RestrictionTableID" = {layerID}'
-        ).format(proposalID=str(self.thisProposalNr), layerID=str(layerID))
-
         if actionOnAcceptance is not None:
-            query = (
-                f'{query} AND "ActionOnProposalAcceptance" = {actionOnAcceptance.value}'
-            )
+            query = f'{query} AND "ActionOnProposalAcceptance" = {actionOnAcceptance.value}'
 
         TOMsMessageLog.logMessage(
             "In __getRestrictionsInProposalForLayerForAction. query: " + str(query),
@@ -200,9 +157,7 @@ class TOMsProposal(QObject):
         request = QgsFeatureRequest().setFilterExpression(query)
 
         restrictionList = []
-        for restrictionInProposalDetails in self.restrictionsInProposals.getFeatures(
-            request
-        ):
+        for restrictionInProposalDetails in self.restrictionsInProposals.getFeatures(request):
             restrictionList.append(
                 [
                     restrictionInProposalDetails["RestrictionID"],
@@ -221,15 +176,11 @@ class TOMsProposal(QObject):
 
         if currProposalID > 0:  # need to consider a proposal
 
-            for (layerID, layerName) in getRestrictionLayersList(
-                self.proposalsManager.tableNames
-            ):
+            for (layerID, layerName) in getRestrictionLayersList(self.proposalsManager.tableNames):
                 currLayer = self.proposalsManager.tableNames.getLayer(layerName)
                 restrictionStr = self.__getRestrictionsListForLayerForAction(layerID)
                 TOMsMessageLog.logMessage(
-                    "In getProposalBoundingBox. ({}) request: {}".format(
-                        layerName, restrictionStr
-                    ),
+                    "In getProposalBoundingBox. ({}) request: {}".format(layerName, restrictionStr),
                     level=Qgis.Info,
                 )
 
@@ -238,29 +189,20 @@ class TOMsProposal(QObject):
                 if currLayer:
                     layerFilterString = currLayer.subsetString()
                     TOMsMessageLog.logMessage(
-                        "In getProposalBoundingBox. ("
-                        + layerName
-                        + ") filter:"
-                        + layerFilterString,
+                        "In getProposalBoundingBox. (" + layerName + ") filter:" + layerFilterString,
                         level=Qgis.Info,
                     )
                     if not currLayer.dataProvider().setSubsetString(None):
                         TOMsMessageLog.logMessage(
-                            "In TOMsProposal:getProposalBoundingBox. ("
-                            + layerName
-                            + ") filter error ....",
+                            "In TOMsProposal:getProposalBoundingBox. (" + layerName + ") filter error ....",
                             level=Qgis.Warning,
                         )
 
-                    query = '"RestrictionID" IN ({restrictions})'.format(
-                        restrictions=restrictionStr
-                    )
+                    query = '"RestrictionID" IN ({restrictions})'.format(restrictions=restrictionStr)
 
                     request = QgsFeatureRequest().setFilterExpression(query)
                     for currRestriction in currLayer.getFeatures(request):
-                        geometryBoundingBox.combineExtentWith(
-                            currRestriction.geometry().boundingBox()
-                        )
+                        geometryBoundingBox.combineExtentWith(currRestriction.geometry().boundingBox())
 
                     currLayer.dataProvider().setSubsetString(layerFilterString)
                     # currLayer.blockSignals(False)
@@ -297,9 +239,7 @@ class TOMsProposal(QObject):
 
             # loop through all the layers that might have restrictions
 
-            for (layerID, layerName) in getRestrictionLayersList(
-                self.proposalsManager.tableNames
-            ):
+            for (layerID, layerName) in getRestrictionLayersList(self.proposalsManager.tableNames):
 
                 # clear filter
                 thisLayer = self.proposalsManager.tableNames.getLayer(layerName)
@@ -317,17 +257,13 @@ class TOMsProposal(QObject):
                         self.proposalsManager, layerID, thisLayer, currRestrictionID
                     )
                     if currRestriction.getElement():
-                        dictTilesInProposal.update(
-                            currRestriction.getTilesForRestrictionForDate(revisionDate)
-                        )
+                        dictTilesInProposal.update(currRestriction.getTilesForRestrictionForDate(revisionDate))
                     else:
                         dictTilesInProposal = {}
                         QMessageBox.information(
                             None,
                             "Error",
-                            "getProposalTileDictionaryForDate failed with RestrictionID: {}".format(
-                                currRestrictionID
-                            ),
+                            "getProposalTileDictionaryForDate failed with RestrictionID: {}".format(currRestrictionID),
                             QMessageBox.Ok,
                         )
                         break
@@ -342,9 +278,7 @@ class TOMsProposal(QObject):
 
         else:
 
-            for currTileRecord in self.proposalsManager.tableNames.getLayer(
-                "MapGrid"
-            ).getFeatures():
+            for currTileRecord in self.proposalsManager.tableNames.getLayer("MapGrid").getFeatures():
 
                 TOMsMessageLog.logMessage(
                     "In TOMsProposal.getProposalTileDictionaryForDate. Current. Tile: "
@@ -395,13 +329,9 @@ class TOMsProposal(QObject):
         if self.thisProposalNr > 0:  # need to consider a proposal
 
             # set Open/Close date for restrictions in Proposal
-            for (currlayerID, currlayerName) in getRestrictionLayersList(
-                self.proposalsManager.tableNames
-            ):
+            for (currlayerID, currlayerName) in getRestrictionLayersList(self.proposalsManager.tableNames):
                 currLayer = self.proposalsManager.tableNames.getLayer(currlayerName)
-                if not currLayer.dataProvider().setSubsetString(
-                    None
-                ):  # need to use data provider ??
+                if not currLayer.dataProvider().setSubsetString(None):  # need to use data provider ??
                     TOMsMessageLog.logMessage(
                         "In TOMsProposal.acceptProposal - problem clearing filter for layer {}:{}:{}".format(
                             currlayerName, currLayer.name(), currLayer
@@ -411,16 +341,12 @@ class TOMsProposal(QObject):
                     return False
 
                 TOMsMessageLog.logMessage(
-                    "In TOMsProposal:acceptProposal. Considering layer: {}".format(
-                        currlayerName
-                    ),
+                    "In TOMsProposal:acceptProposal. Considering layer: {}".format(currlayerName),
                     level=Qgis.Warning,
                 )
 
                 restrictionList = []
-                restrictionList = self.__getRestrictionsInProposalForLayerForAction(
-                    currlayerID
-                )
+                restrictionList = self.__getRestrictionsInProposalForLayerForAction(currlayerID)
 
                 for (
                     currRestrictionID,
@@ -432,15 +358,11 @@ class TOMsProposal(QObject):
                     if currRestrictionInProposal is None:
                         return False
                     status = currRestrictionInProposal.acceptActionOnProposalElement(
-                        currRestrictionInProposalDetails.attribute(
-                            "ActionOnProposalAcceptance"
-                        )
+                        currRestrictionInProposalDetails.attribute("ActionOnProposalAcceptance")
                     )  # Finding the correct action could go to ProposalElement
                     if not status:
                         TOMsMessageLog.logMessage(
-                            "In TOMsProposal:acceptProposal. "
-                            + str(currRestrictionID)
-                            + " error on Action",
+                            "In TOMsProposal:acceptProposal. " + str(currRestrictionID) + " error on Action",
                             level=Qgis.Warning,
                         )
                         return status
@@ -464,13 +386,9 @@ class TOMsProposal(QObject):
                 )
                 # currTile = TOMsTile(self.proposalsManager, tileNr)
 
-                if not currTile.updateTileDetailsOnProposalAcceptance(
-                    self.proposalsManager
-                ):
+                if not currTile.updateTileDetailsOnProposalAcceptance(self.proposalsManager):
                     TOMsMessageLog.logMessage(
-                        "In TOMsProposal:acceptProposal. "
-                        + str(tileNr)
-                        + " error updating tile revision details",
+                        "In TOMsProposal:acceptProposal. " + str(tileNr) + " error updating tile revision details",
                         level=Qgis.Warning,
                     )
                     return False

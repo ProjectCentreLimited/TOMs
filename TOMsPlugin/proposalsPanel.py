@@ -42,7 +42,6 @@ from .utils import saveLastSelectedValue, setupPanelTabs
 
 class ProposalsPanel:
     def __init__(self, tomsToolbar):
-
         # Save reference to the QGIS interface
         self.canvas = iface.mapCanvas()
         self.tomsToolbar = tomsToolbar
@@ -65,9 +64,7 @@ class ProposalsPanel:
 
         # Now set up the toolbar
 
-        self.restrictionTools = ManageRestrictionDetails(
-            self.tomsToolbar, self.proposalsManager
-        )
+        self.restrictionTools = ManageRestrictionDetails(self.tomsToolbar, self.proposalsManager)
 
         self.searchBar = SearchBar(self.tomsToolbar)
 
@@ -118,9 +115,7 @@ class ProposalsPanel:
         self.currProposalObject = None
         self.currProposal = None
 
-        TOMsMessageLog.logMessage(
-            "Finished proposalsPanel init ...", level=TOMsMessageLog.DEBUG
-        )
+        TOMsMessageLog.logMessage("Finished proposalsPanel init ...", level=TOMsMessageLog.DEBUG)
 
     def __enablePrintTool(self, active):  # pylint: disable=invalid-name
         self.tool.setEnabled(active)
@@ -135,18 +130,12 @@ class ProposalsPanel:
         TOMsMessageLog.logMessage("In onInitProposalsPanel", level=Qgis.Info)
 
         if self.actionProposalsPanel.isChecked():
-
-            TOMsMessageLog.logMessage(
-                "In onInitProposalsPanel. Activating ...", level=Qgis.Info
-            )
+            TOMsMessageLog.logMessage("In onInitProposalsPanel. Activating ...", level=Qgis.Info)
 
             self.openTOMsTools()
 
         else:
-
-            TOMsMessageLog.logMessage(
-                "In onInitProposalsPanel. Deactivating ...", level=Qgis.Info
-            )
+            TOMsMessageLog.logMessage("In onInitProposalsPanel. Deactivating ...", level=Qgis.Info)
 
             self.closeTOMsTools()
 
@@ -157,9 +146,7 @@ class ProposalsPanel:
         self.closeTOMs = False
 
         # Check that tables are present
-        TOMsMessageLog.logMessage(
-            "In onInitProposalsPanel. Checking tables", level=Qgis.Info
-        )
+        TOMsMessageLog.logMessage("In onInitProposalsPanel. Checking tables", level=Qgis.Info)
         self.tableNames.tomsLayersNotFound.connect(self.setCloseTOMsFlag)
 
         self.tomsConfigFileObject = TOMsConfigFile()
@@ -169,9 +156,7 @@ class ProposalsPanel:
         self.tableNames.setLayers(self.tomsConfigFileObject)
 
         if self.closeTOMs:
-            QMessageBox.information(
-                iface.mainWindow(), "ERROR", ("Unable to start TOMs ...")
-            )
+            QMessageBox.information(iface.mainWindow(), "ERROR", ("Unable to start TOMs ..."))
             self.actionProposalsPanel.setChecked(False)
             return
 
@@ -193,27 +178,23 @@ class ProposalsPanel:
         self.idxProposalTitle = self.proposals.fields().indexFromName("ProposalTitle")
         self.idxCreateDate = self.proposals.fields().indexFromName("ProposalCreateDate")
         self.idxOpenDate = self.proposals.fields().indexFromName("ProposalOpenDate")
-        self.idxProposalStatusID = self.proposals.fields().indexFromName(
-            "ProposalStatusID"
-        )
+        self.idxProposalStatusID = self.proposals.fields().indexFromName("ProposalStatusID")
 
-        self.createProposalcb()
+        self.updateProposalCombobox()
 
         # set CurrentProposal to be 0
 
         # self.proposalsManager.setCurrentProposal(0)
 
         # set up action for when the date is changed from the user interface
-        self.dock.filterDate.dateChanged.connect(
-            lambda: self.proposalsManager.setDate(self.dock.filterDate.date())
-        )
+        self.dock.filterDate.dateChanged.connect(lambda: self.proposalsManager.setDate(self.dock.filterDate.date()))
 
         # set up action for "New Proposal"
-        self.dock.btn_NewProposal.clicked.connect(self.onNewProposal)
-        self.dock.btn_NewProposal.setEnabled(UserPermission.WRITE)
+        self.dock.btnNewProposal.clicked.connect(self.onNewProposal)
+        self.dock.btnNewProposal.setEnabled(UserPermission.WRITE)
 
         # set up action for "View Proposal"
-        self.dock.btn_ViewProposal.clicked.connect(self.onProposalDetails)
+        self.dock.btnViewProposal.clicked.connect(self.onProposalDetails)
 
         self.proposalsManager.newProposalCreated.connect(self.onNewProposalCreated)
 
@@ -242,21 +223,15 @@ class ProposalsPanel:
     def closeTOMsTools(self):
         # actions when the Proposals Panel is closed or the toolbar "start" is toggled
 
-        TOMsMessageLog.logMessage(
-            "In closeTOMsTools. Deactivating ...", level=Qgis.Info
-        )
+        TOMsMessageLog.logMessage("In closeTOMsTools. Deactivating ...", level=Qgis.Info)
 
         # TODO: Delete any objects that are no longer needed
 
         try:
             self.proposalTransaction.rollBackTransactionGroup()
-            del (
-                self.proposalTransaction
-            )  # There is another call to this function from the dock.close()
+            del self.proposalTransaction  # There is another call to this function from the dock.close()
         except Exception as e:
-            TOMsMessageLog.logMessage(
-                "closeTOMsTools: issue with transactions {}".format(e), level=Qgis.Info
-            )
+            TOMsMessageLog.logMessage("closeTOMsTools: issue with transactions {}".format(e), level=Qgis.Info)
 
         # Now disable the items from the Toolbar
 
@@ -280,39 +255,22 @@ class ProposalsPanel:
         # reset path names
         self.tableNames.removePathFromLayerForms()
 
-    def createProposalcb(self):
+    def updateProposalCombobox(self):
+        """Fill-in the proposals list"""
 
-        TOMsMessageLog.logMessage("In createProposalcb", level=Qgis.Info)
-        # set up a "NULL" field for "No proposals to be shown"
-
-        self.dock.cb_ProposalsList.clear()
-
+        self.dock.cbProposalsList.clear()
         currProposalID = 0
         currProposalTitle = "0 - No proposal shown"
 
-        TOMsMessageLog.logMessage("In createProposalcb: Adding 0", level=Qgis.Info)
+        self.dock.cbProposalsList.addItem(currProposalTitle, currProposalID)
 
-        self.dock.cb_ProposalsList.addItem(currProposalTitle, currProposalID)
-
-        for (currProposalID, currProposalTitle, _, _, _,) in sorted(
-            self.proposalsManager.getProposalsListWithStatus(
-                ProposalStatus.IN_PREPARATION
-            ),
-            key=lambda f: f[1],
+        for proposal in sorted(
+            self.proposalsManager.getProposals(ProposalStatus.IN_PREPARATION), key=lambda f: f["ProposalID"]
         ):
-            TOMsMessageLog.logMessage(
-                "In createProposalcb: proposalID: "
-                + str(currProposalID)
-                + ":"
-                + currProposalTitle,
-                level=Qgis.Info,
-            )
-            self.dock.cb_ProposalsList.addItem(currProposalTitle, currProposalID)
+            self.dock.cbProposalsList.addItem(proposal["ProposalTitle"], proposal["ProposalID"])
 
         # set up action for when the proposal is changed
-        self.dock.cb_ProposalsList.currentIndexChanged.connect(
-            self.onProposalListIndexChanged
-        )
+        self.dock.cbProposalsList.currentIndexChanged.connect(self.onProposalListIndexChanged)
 
     def onNewProposal(self):
         TOMsMessageLog.logMessage("In onNewProposal", level=Qgis.Info)
@@ -322,12 +280,8 @@ class ProposalsPanel:
 
         # create a new Proposal
 
-        self.newProposalObject = (
-            self.proposalsManager.currentProposalObject().initialiseProposal()
-        )
-        self.newProposal = (
-            self.proposalsManager.currentProposalObject().getProposalRecord()
-        )
+        self.newProposalObject = self.proposalsManager.currentProposalObject().initialiseProposal()
+        self.newProposal = self.proposalsManager.currentProposalObject().getProposalRecord()
 
         self.proposalDialog = iface.getFeatureForm(self.proposals, self.newProposal)
 
@@ -335,9 +289,7 @@ class ProposalsPanel:
         self.buttonBox = self.proposalDialog.findChild(QDialogButtonBox, "button_box")
 
         if self.buttonBox is None:
-            TOMsMessageLog.logMessage(
-                "In onNewProposal. button box not found", level=Qgis.Info
-            )
+            TOMsMessageLog.logMessage("In onNewProposal. button box not found", level=Qgis.Info)
 
             # self.button_box.accepted.disconnect()
         self.buttonBox.accepted.connect(
@@ -354,36 +306,31 @@ class ProposalsPanel:
         self.buttonBox.rejected.connect(self.onRejectProposalDetailsFromForm)
 
         self.proposalDialog.attributeForm().attributeChanged.connect(
-            functools.partial(
-                saveLastSelectedValue, self.newProposal, self.proposals
-            )
+            functools.partial(saveLastSelectedValue, self.newProposal, self.proposals)
         )
 
         self.proposalDialog.show()
 
     def onNewProposalCreated(self, proposal):
-        TOMsMessageLog.logMessage(
-            "In onNewProposalCreated. New proposal = " + str(proposal), level=Qgis.Info
-        )
+        TOMsMessageLog.logMessage("In onNewProposalCreated. New proposal = " + str(proposal), level=Qgis.Info)
 
-        self.createProposalcb()
+        self.updateProposalCombobox()
 
         # change the list to show the new proposal
 
-        for currIndex in range(self.dock.cb_ProposalsList.count()):
-            currProposalID = self.dock.cb_ProposalsList.itemData(currIndex)
+        for currIndex in range(self.dock.cbProposalsList.count()):
+            currProposalID = self.dock.cbProposalsList.itemData(currIndex)
             if currProposalID == proposal:
                 TOMsMessageLog.logMessage(
                     "In onNewProposalCreated. index found as " + str(currIndex),
                     level=Qgis.Info,
                 )
-                self.dock.cb_ProposalsList.setCurrentIndex(currIndex)
+                self.dock.cbProposalsList.setCurrentIndex(currIndex)
                 return
 
         return
 
     def onRejectProposalDetailsFromForm(self):
-
         self.proposals.destroyEditCommand()
         self.proposalDialog.reject()
 
@@ -398,24 +345,20 @@ class ProposalsPanel:
         self.proposalTransaction.startTransactionGroup()
 
         # https://gis.stackexchange.com/questions/94135/how-to-populate-a-combobox-with-layers-in-toc
-        currProposalCbIndex = self.dock.cb_ProposalsList.currentIndex()
+        currProposalCbIndex = self.dock.cbProposalsList.currentIndex()
 
         if currProposalCbIndex == 0:
             return  # there is nothing to see
 
         # self.currProposal = self.getProposal(currProposalID)
         self.currProposalObject = self.proposalsManager.currentProposalObject()
-        self.currProposal = (
-            self.proposalsManager.currentProposalObject().getProposalRecord()
-        )
+        self.currProposal = self.proposalsManager.currentProposalObject().getProposalRecord()
         self.proposalDialog = iface.getFeatureForm(self.proposals, self.currProposal)
 
         self.buttonBox = self.proposalDialog.findChild(QDialogButtonBox, "button_box")
 
         if self.buttonBox is None:
-            TOMsMessageLog.logMessage(
-                "In onNewProposal. button box not found", level=Qgis.Info
-            )
+            TOMsMessageLog.logMessage("In onNewProposal. button box not found", level=Qgis.Info)
 
         self.buttonBox.accepted.disconnect()
         self.buttonBox.accepted.connect(
@@ -433,19 +376,13 @@ class ProposalsPanel:
         self.buttonBox.rejected.connect(self.onRejectProposalDetailsFromForm)
 
         self.proposalDialog.attributeForm().attributeChanged.connect(
-            functools.partial(
-                saveLastSelectedValue, self.currProposal, self.proposals
-            )
+            functools.partial(saveLastSelectedValue, self.currProposal, self.proposals)
         )
 
         def proposalStatusCallback():
             # Only users with the right privilege can reject or accept a proposal
-            currentStatusId = self.proposalDialog.findChild(
-                QComboBox, "ProposalStatusID"
-            ).currentData()
-            self.proposalDialog.findChild(QDialogButtonBox, "button_box").button(
-                QDialogButtonBox.Ok
-            ).setEnabled(
+            currentStatusId = self.proposalDialog.findChild(QComboBox, "ProposalStatusID").currentData()
+            self.proposalDialog.findChild(QDialogButtonBox, "button_box").button(QDialogButtonBox.Ok).setEnabled(
                 UserPermission.CONFIRM_ORDERS
                 or (
                     currentStatusId
@@ -456,9 +393,7 @@ class ProposalsPanel:
                 )
             )
 
-        self.proposalDialog.findChild(
-            QComboBox, "ProposalStatusID"
-        ).currentIndexChanged.connect(proposalStatusCallback)
+        self.proposalDialog.findChild(QComboBox, "ProposalStatusID").currentIndexChanged.connect(proposalStatusCallback)
 
         self.proposalDialog.setEnabled(UserPermission.WRITE)
         self.proposalDialog.show()
@@ -488,8 +423,7 @@ class ProposalsPanel:
         newProposalStatusID = currProposalRecord[idxProposalStatusID]
         newProposalOpenDate = currProposalRecord[idxProposalOpenDate]
         TOMsMessageLog.logMessage(
-            "In onSaveProposalFormDetails. currProposalStatus = "
-            + str(currProposalStatusID),
+            "In onSaveProposalFormDetails. currProposalStatus = " + str(currProposalStatusID),
             level=Qgis.Info,
         )
 
@@ -497,7 +431,6 @@ class ProposalsPanel:
         proposalAcceptedRejected = False
 
         if newProposalStatusID == ProposalStatus.ACCEPTED.value:  # 2 = accepted
-
             reply = QMessageBox.question(
                 None,
                 "Confirm changes to Proposal",
@@ -507,15 +440,12 @@ class ProposalsPanel:
                 QMessageBox.No,
             )
             if reply == QMessageBox.Yes:
-
                 currProposalObject.setProposalOpenDate(newProposalOpenDate)
 
                 if not currProposalObject.acceptProposal():
                     proposalTransaction.rollBackTransactionGroup()
                     proposalsDialog.reject()
-                    reply = QMessageBox.information(
-                        None, "Error", "Error in accepting proposal ...", QMessageBox.Ok
-                    )
+                    reply = QMessageBox.information(None, "Error", "Error in accepting proposal ...", QMessageBox.Ok)
                     TOMsMessageLog.logMessage(
                         "In onSaveProposalFormDetails. Error in transaction",
                         level=Qgis.Info,
@@ -530,7 +460,6 @@ class ProposalsPanel:
                 proposalsDialog.reject()
 
         elif currProposalStatusID == ProposalStatus.REJECTED.value:  # 3 = rejected
-
             reply = QMessageBox.question(
                 None,
                 "Confirm changes to Proposal",
@@ -541,7 +470,6 @@ class ProposalsPanel:
                 QMessageBox.No,
             )
             if reply == QMessageBox.Yes:
-
                 if not currProposalObject.rejectProposal():
                     proposalTransaction.rollBackTransactionGroup()
                     proposalsDialog.reject()
@@ -559,7 +487,6 @@ class ProposalsPanel:
                 proposalsDialog.reject()
 
         else:
-
             TOMsMessageLog.logMessage(
                 "In onSaveProposalFormDetails. currProposalID = " + str(currProposalID),
                 level=Qgis.Info,
@@ -567,16 +494,11 @@ class ProposalsPanel:
             proposalsDialog.attributeForm().save()
 
             # anything else can be saved.
-            if (
-                currProposalID == 0
-            ):  # We should not be here if this is the current proposal ... 0 is place holder ...
-
+            if currProposalID == 0:  # We should not be here if this is the current proposal ... 0 is place holder ...
                 # This is a new proposal ...
 
                 newProposal = True
-                TOMsMessageLog.logMessage(
-                    "In onSaveProposalFormDetails. New Proposal ... ", level=Qgis.Info
-                )
+                TOMsMessageLog.logMessage("In onSaveProposalFormDetails. New Proposal ... ", level=Qgis.Info)
 
             else:
                 pass
@@ -614,8 +536,7 @@ class ProposalsPanel:
             for proposal in self.proposals.getFeatures():
                 if proposal[idxProposalTitle] == currProposalTitle:
                     TOMsMessageLog.logMessage(
-                        "In onSaveProposalFormDetails. newProposalID = "
-                        + str(proposal.id()),
+                        "In onSaveProposalFormDetails. newProposalID = " + str(proposal.id()),
                         level=Qgis.Info,
                     )
                     newProposalID = proposal[idxProposalID]
@@ -624,30 +545,26 @@ class ProposalsPanel:
 
         elif proposalAcceptedRejected:
             # refresh the cbProposals and set current Proposal to 0
-            self.createProposalcb()
+            self.updateProposalCombobox()
             self.proposalsManager.setCurrentProposal(0)
 
         else:
-
             self.proposalsManager.newProposalCreated.emit(currProposalID)
 
     def onProposalListIndexChanged(self):
         TOMsMessageLog.logMessage("In onProposalListIndexChanged.", level=Qgis.Info)
 
-        currProposalCbIndex = self.dock.cb_ProposalsList.currentIndex()
+        currProposalCbIndex = self.dock.cbProposalsList.currentIndex()
         TOMsMessageLog.logMessage(
-            "In onProposalListIndexChanged. Current Index = "
-            + str(currProposalCbIndex),
+            "In onProposalListIndexChanged. Current Index = " + str(currProposalCbIndex),
             level=Qgis.Info,
         )
-        currProposalID = self.dock.cb_ProposalsList.currentData()
+        currProposalID = self.dock.cbProposalsList.currentData()
 
         with OverrideCursor(Qt.WaitCursor):
             self.proposalsManager.setCurrentProposal(currProposalID)
 
-        TOMsMessageLog.logMessage(
-            "In onProposalChanged. Zoom to extents", level=Qgis.Info
-        )
+        TOMsMessageLog.logMessage("In onProposalChanged. Zoom to extents", level=Qgis.Info)
 
     def onDateChanged(self):
         TOMsMessageLog.logMessage("In onDateChanged.", level=Qgis.Info)
