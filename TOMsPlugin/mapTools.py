@@ -28,7 +28,7 @@ from qgis.core import (
 )
 from qgis.gui import QgsMapToolDigitizeFeature, QgsMapToolIdentify
 from qgis.PyQt.QtCore import Qt, QTimer
-from qgis.PyQt.QtWidgets import QMessageBox, QToolTip
+from qgis.PyQt.QtWidgets import QDockWidget, QMessageBox, QToolTip
 from qgis.utils import iface
 
 from .constants import RestrictionAction
@@ -42,14 +42,19 @@ from .utils import setupPanelTabs
 class CreateRestrictionTool(QgsMapToolDigitizeFeature):
     def __init__(self):
 
-        super().__init__(iface.mapCanvas(), iface.cadDockWidget())
+        advancedDigitizingPanel = iface.cadDockWidget()
+        super().__init__(iface.mapCanvas(), advancedDigitizingPanel)
+        advancedDigitizingPanel.setVisible(True)
+        advancedDigitizingPanel.enable()
+        if not advancedDigitizingPanel.enableAction().isChecked():
+            advancedDigitizingPanel.enableAction().trigger()
+
         self.setAdvancedDigitizingAllowed(True)
-        self.setAutoSnapEnabled(True)
         self.digitizingCompleted.connect(self.addFeature)
 
-        TOMsMessageLog.logMessage(
-            "In CreateRestrictionTool. Finished init.", level=Qgis.Info
-        )
+    def activate(self):
+        super().activate()
+        setupPanelTabs(self.cadDockWidget())
 
     def addFeature(self, feature):
         layerName = self.layer().name()
@@ -59,66 +64,39 @@ class CreateRestrictionTool(QgsMapToolDigitizeFeature):
             self.layer().commitChanges()
             return
 
-        TOMsMessageLog.logMessage("In setDefaultRestrictionDetails: ", level=Qgis.Info)
-
-        restrictionId = str(uuid.uuid4())
-        feature["RestrictionID"] = restrictionId
-        GenerateGeometryUtils.setRoadName(feature)
-
-        if self.layer().geometryType() == 1:  # Line or Bay
-            GenerateGeometryUtils.setAzimuthToRoadCentreLine(feature)
-
-        currentCPZ, cpzWaitingTimeID = GenerateGeometryUtils.getCurrentCPZDetails(
-            feature
-        )
-        currentED, edWaitingTimeID = GenerateGeometryUtils.getCurrentEventDayDetails(
-            feature
-        )
+        feature["RestrictionID"] = str(uuid.uuid4())
+        newRoadName, newUSRN = GenerateGeometryUtils.determineRoadName(feature)
+        feature["RoadName"] = newRoadName
+        feature["USRN"] = newUSRN
+        currentCPZ, cpzWaitingTimeID = GenerateGeometryUtils.getCurrentCPZDetails(feature)
+        currentED, edWaitingTimeID = GenerateGeometryUtils.getCurrentEventDayDetails(feature)
 
         if layerName != "Signs":
-            feature.setAttribute("CPZ", currentCPZ)
-            feature.setAttribute("MatchDayEventDayZone", currentED)
-
-        # TODO: get the last used values ... look at field ...
+            feature["CPZ"] = currentCPZ
+            feature["MatchDayEventDayZone"] = currentED
 
         if layerName == "Lines":
-            # feature.setAttribute("RestrictionTypeID", 224)  # 10 = SYL (Lines)
-            feature.setAttribute(
-                "RestrictionTypeID", QgsSettings().value("Lines/RestrictionTypeID", 224)
-            )
-            # feature.setAttribute("GeomShapeID", 10)   # 10 = Parallel Line
-            feature.setAttribute(
-                "GeomShapeID", QgsSettings().value("Lines/GeomShapeID", 10)
-            )
-            feature.setAttribute("NoWaitingTimeID", cpzWaitingTimeID)
-            feature.setAttribute("MatchDayTimePeriodID", edWaitingTimeID)
-            # feature.setAttribute("Lines_DateTime", currDate)
+            GenerateGeometryUtils.setAzimuthToRoadCentreLine(feature)
+            feature["RestrictionTypeID"] = QgsSettings().value("Lines/RestrictionTypeID", 224)
+            feature["GeomShapeID"] = QgsSettings().value("Lines/GeomShapeID", 10)
+            feature["NoWaitingTimeID"] = cpzWaitingTimeID
+            feature["MatchDayTimePeriodID"] = edWaitingTimeID
 
         elif layerName == "Bays":
-            # feature.setAttribute("RestrictionTypeID", 101)  # 28 = Permit Holders Bays (Bays)
-            feature.setAttribute(
-                "RestrictionTypeID",
-                QgsSettings().value("Bays/RestrictionTypeID", 101),
-            )  # 28 = Permit Holders Bays (Bays)
-            feature.setAttribute(
-                "GeomShapeID",
-                QgsSettings().value("Bays/GeomShapeID", 21),
-            )  # 21 = Parallel Bay (Polygon)
-            # feature.setAttribute("GeomShapeID", 21)   # 21 = Parallel Bay (Polygon)
-            feature.setAttribute("NrBays", -1)
-
-            feature.setAttribute("TimePeriodID", cpzWaitingTimeID)
-            feature.setAttribute("MatchDayTimePeriodID", edWaitingTimeID)
-
+            GenerateGeometryUtils.setAzimuthToRoadCentreLine(feature)
+            feature["RestrictionTypeID"] = QgsSettings().value("Bays/RestrictionTypeID", 101)
+            feature["GeomShapeID"] = QgsSettings().value("Bays/GeomShapeID", 21)
+            feature["NrBays"] = -1
+            feature["TimePeriodID"] = cpzWaitingTimeID
+            feature["MatchDayTimePeriodID"] = edWaitingTimeID
             (
                 currentPTA,
                 ptaMaxStayID,
                 ptaNoReturnID,
             ) = GenerateGeometryUtils.getCurrentPTADetails(feature)
-
-            feature.setAttribute("MaxStayID", ptaMaxStayID)
-            feature.setAttribute("NoReturnID", ptaNoReturnID)
-            feature.setAttribute("ParkingTariffArea", currentPTA)
+            feature["MaxStayID"] = ptaMaxStayID
+            feature["NoReturnID"] = ptaNoReturnID
+            feature["ParkingTariffArea"] = currentPTA
 
             try:
                 payParkingAreasLayer = QgsProject.instance().mapLayersByName(
@@ -127,9 +105,7 @@ class CreateRestrictionTool(QgsMapToolDigitizeFeature):
                 currPayParkingArea = GenerateGeometryUtils.getPolygonForRestriction(
                     feature, payParkingAreasLayer
                 )
-                feature.setAttribute(
-                    "PayParkingAreaID", currPayParkingArea.attribute("Code")
-                )
+                feature["PayParkingAreaID"] = currPayParkingArea.attribute("Code")
             except Exception as e:
                 TOMsMessageLog.logMessage(
                     "In setDefaultRestrictionDetails:payParkingArea: error: {}".format(
@@ -140,24 +116,19 @@ class CreateRestrictionTool(QgsMapToolDigitizeFeature):
 
         elif layerName == "Signs":
             # feature.setAttribute("SignType_1", 28)  # 28 = Permit Holders Only (Signs)
-            feature.setAttribute(
-                "SignType_1",
-                QgsSettings().value("Signs/SignType_1", 28),
-            )
+            feature["SignType_1"] = QgsSettings().value("Signs/SignType_1", 28)
 
         elif layerName == "RestrictionPolygons":
             # feature.setAttribute("RestrictionTypeID", 4)  # 28 = Residential mews area (RestrictionPolygons)
-            feature.setAttribute(
-                "RestrictionTypeID",
-                QgsSettings().value("RestrictionPolygons/RestrictionTypeID", 4),
-            )
-            feature.setAttribute("MatchDayTimePeriodID", edWaitingTimeID)
+            feature["RestrictionTypeID"] = QgsSettings().value("RestrictionPolygons/RestrictionTypeID", 4)
+            feature["MatchDayTimePeriodID"] = edWaitingTimeID
 
         else:
             raise NotImplementedError(f"Layer {layerName} not implemented")
 
         dialog = RestrictionDialogWrapper(self.layer(), feature)
-        dialog.show()
+        dialog.dialog.exec()
+        iface.actionPan().trigger()
 
 
 class SelectRestrictionTool(QgsMapToolIdentify):

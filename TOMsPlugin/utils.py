@@ -102,9 +102,9 @@ def deleteRestrictionInProposal(currRestrictionID, currRestrictionLayerID, propo
     return False
 
 
-def onAttributeChangedClass2(currFeature, layer, fieldName, value):
+def saveLastSelectedValue(currFeature, layer, fieldName, value):
     """
-    Sets the value for the attribute, and update a setting
+    Sets the value for the attribute, and update a setting to save last selected value
     """
 
     TOMsMessageLog.logMessage(

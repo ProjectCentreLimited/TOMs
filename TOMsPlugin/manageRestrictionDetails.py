@@ -301,7 +301,6 @@ class ManageRestrictionDetails:
         self.mapTool = CreateRestrictionTool()
         iface.mapCanvas().setMapTool(self.mapTool)
         self.mapTool.setAction(createAction)
-        self.mapTool.digitizingCompleted.connect(iface.actionPan().trigger)
 
         TOMsMessageLog.logMessage(
             "In doCreateRestriction - tool activated on " + currLayer.name(),
@@ -489,8 +488,12 @@ class ManageRestrictionDetails:
                 iface.actionVertexToolActiveLayer().toggled.connect(
                     lambda: self.actionEditRestriction.setChecked(False)
                 )
-                setupPanelTabs(iface.cadDockWidget())
-                iface.cadDockWidget().enable()
+                advancedDigitizingPanel = iface.cadDockWidget()
+                advancedDigitizingPanel.setVisible(True)
+                advancedDigitizingPanel.enable()
+                if not advancedDigitizingPanel.enableAction().isChecked():
+                    advancedDigitizingPanel.enableAction().trigger()
+                setupPanelTabs(advancedDigitizingPanel)
 
             else:
                 QMessageBox.information(

@@ -34,8 +34,8 @@ from .restrictionTypeUtilsClass import TOMsLabelLayerNames
 from .utils import (
     addRestrictionToProposal,
     getRestrictionLayerTableID,
-    onAttributeChangedClass2,
     restrictionInProposal,
+    saveLastSelectedValue,
     setupPanelTabs,
 )
 
@@ -53,9 +53,7 @@ class RestrictionDialogWrapper:
 
         self.layer = layer
         self.feature = feature
-        self.proposalPanelDock = iface.mainWindow().findChild(
-            QDockWidget, "ProposalPanelDockWidgetBase"
-        )
+        self.proposalPanelDock = iface.mainWindow().findChild(QDockWidget, "ProposalPanelDockWidgetBase")
 
         # If we are here a TOMsTransaction has already been instanciated
         # and it's a singleton. Therefore we don't need to give any
@@ -69,7 +67,7 @@ class RestrictionDialogWrapper:
         if buttonBox is None:
             raise ValueError("In setupRestrictionDialog. button box not found")
         self.dialog.attributeForm().attributeChanged.connect(
-            functools.partial(onAttributeChangedClass2, self.feature, self.layer)
+            functools.partial(saveLastSelectedValue, self.feature, self.layer)
         )
 
         buttonBox.accepted.connect(lambda: self.accept())
@@ -109,228 +107,87 @@ class RestrictionDialogWrapper:
                 "Nothing will be saved because you only have read access",
             )
             return
-        TOMsMessageLog.logMessage(
-            "In RestrictionDialogWrapper.accept: "
-            + str(self.feature.attribute("GeometryID")),
-            level=Qgis.Info,
-        )
 
-        currProposalID = int(
-            QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable(
-                "CurrentProposal"
-            )
-        )
+        currProposalID = QgsProject.instance().customVariables()["CurrentProposal"]
+        if currProposalID <= 0:
+            # Impossible because if no proposal selected the OK button is disabled
+            raise RuntimeError("Can't accept a restriction form if no proposal selected")
 
-        if currProposalID > 0:
+        restrictionId = self.feature["RestrictionID"]
+        currRestrictionLayerTableID = getRestrictionLayerTableID(self.layer)
 
-            currRestrictionLayerTableID = getRestrictionLayerTableID(self.layer)
-            idxRestrictionID = self.feature.fields().indexFromName("RestrictionID")
-            idxGeometryID = self.feature.fields().indexFromName("GeometryID")
+        # If restriction is already part of the current proposal
+        # simply make changes to the current restriction in the current layer
+        if restrictionInProposal(
+            restrictionId,
+            currRestrictionLayerTableID,
+            currProposalID,
+        ):
+            if not self.layer.updateFeature(self.feature):
+                raise RuntimeError(f"Unable to update the feature {restrictionId}")
+            self.saveAndClose()
+            return
 
-            if restrictionInProposal(
-                self.feature[idxRestrictionID],
+        # If it is a completely new feature that has been draw, need to:
+        #    - enter the restriction into the table RestrictionInProposals, and
+        #    - make a copy of the restriction in the current layer (with the new details)
+        if self.feature["OpenDate"] is None:
+            addRestrictionToProposal(
+                restrictionId,
                 currRestrictionLayerTableID,
                 currProposalID,
-            ):
-
-                # restriction is already part of the current proposal
-                # simply make changes to the current restriction in the current layer
-                TOMsMessageLog.logMessage(
-                    "In RestrictionDialogWrapper.accept. Saving details straight from form."
-                    + str(self.feature.attribute("GeometryID")),
-                    level=Qgis.Info,
-                )
-                self.layer.updateFeature(self.feature)
-                self.dialog.attributeForm().save()
-
-            else:
-
-                # restriction is NOT part of the current proposal
-
-                # need to:
-                #    - enter the restriction into the table RestrictionInProposals, and
-                #    - make a copy of the restriction in the current layer (with the new details)
-
-                # Create a new feature using the current details
-
-                idxOpenDate = self.feature.fields().indexFromName("OpenDate")
-                newRestrictionID = str(uuid.uuid4())
-
-                TOMsMessageLog.logMessage(
-                    "In RestrictionDialogWrapper.accept. Adding new restriction (1). ID: "
-                    + str(newRestrictionID),
-                    level=Qgis.Info,
-                )
-
-                if self.feature[idxOpenDate] is None:
-                    # This is a feature that has just been created, i.e., it is not currently part
-                    # of the proposal and did not previously exist
-
-                    # Not quite sure what is happening here but think the following:
-                    #  Feature does not yet exist, i.e., not saved to layer yet, so there is no id for it
-                    # and can't use either feature or layer to save
-                    #  So, need to continue to modify dialog value which will be eventually saved
-
-                    self.dialog.attributeForm().changeAttribute(
-                        "RestrictionID", newRestrictionID
-                    )
-
-                    TOMsMessageLog.logMessage(
-                        "In RestrictionDialogWrapper.accept. Adding new restriction. ID: "
-                        + str(self.feature[idxRestrictionID]),
-                        level=Qgis.Info,
-                    )
-
-                    addRestrictionToProposal(
-                        str(self.feature[idxRestrictionID]),
-                        currRestrictionLayerTableID,
-                        currProposalID,
-                        RestrictionAction.OPEN,
-                    )  # Open = 1
-
-                    TOMsMessageLog.logMessage(
-                        "In RestrictionDialogWrapper.accept. Transaction Status 1: "
-                        + str(self.transaction.currTransactionGroup.modified()),
-                        level=Qgis.Info,
-                    )
-
-                    # attributeForm saves to the layer. Has the feature been added to the layer?
-
-                    self.dialog.attributeForm().save()  # this issues a commit on the transaction?
-                    # TOMsMessageLog.logMessage("Form accepted", level=Qgis.Info)
-                    TOMsMessageLog.logMessage(
-                        "In RestrictionDialogWrapper.accept. Transaction Status 2: "
-                        + str(self.transaction.currTransactionGroup.modified()),
-                        level=Qgis.Info,
-                    )
-                    # currRestrictionLayer.updateFeature(currRestriction)  # TH (added for v3)
-                    self.layer.addFeature(self.feature)  # TH (added for v3)
-
-                else:
-
-                    # this feature was created before this session, we need to:
-                    #  - close it in the RestrictionsInProposals table
-                    #  - clone it in the current Restrictions layer (with a new GeometryID and no OpenDate)
-                    #  - and then stop any changes to the original feature
-
-                    # ************* need to discuss: seems that new has become old !!!
-
-                    TOMsMessageLog.logMessage(
-                        "In RestrictionDialogWrapper.accept. Closing existing restriction. ID: "
-                        + str(self.feature[idxRestrictionID]),
-                        level=Qgis.Info,
-                    )
-
-                    addRestrictionToProposal(
-                        self.feature[idxRestrictionID],
-                        currRestrictionLayerTableID,
-                        currProposalID,
-                        RestrictionAction.CLOSE,
-                    )  # Open = 1; Close = 2
-
-                    newRestriction = QgsFeature(self.feature)
-
-                    # TODO: Rethink logic here and need to unwind changes ... without triggering rollBack ??
-
-                    newRestriction[idxRestrictionID] = newRestrictionID
-                    newRestriction[idxOpenDate] = None
-                    newRestriction[idxGeometryID] = None
-
-                    self.layer.addFeature(newRestriction)
-
-                    TOMsMessageLog.logMessage(
-                        "In RestrictionDialogWrapper.accept. Clone restriction. New ID: "
-                        + str(newRestriction[idxRestrictionID]),
-                        level=Qgis.Info,
-                    )
-
-                    attrs2 = newRestriction.attributes()
-                    TOMsMessageLog.logMessage(
-                        "In RestrictionDialogWrapper.accept: clone Restriction: "
-                        + str(attrs2),
-                        level=Qgis.Info,
-                    )
-                    TOMsMessageLog.logMessage(
-                        "In RestrictionDialogWrapper.accept. Clone: {}".format(
-                            newRestriction.geometry().asWkt()
-                        ),
-                        level=Qgis.Info,
-                    )
-
-                    addRestrictionToProposal(
-                        newRestriction[idxRestrictionID],
-                        currRestrictionLayerTableID,
-                        currProposalID,
-                        RestrictionAction.OPEN,
-                    )  # Open = 1; Close = 2
-
-                    TOMsMessageLog.logMessage(
-                        "In RestrictionDialogWrapper.accept. Opening clone. ID: "
-                        + str(newRestriction[idxRestrictionID]),
-                        level=Qgis.Info,
-                    )
-
-                    self.dialog.attributeForm().close()
-                    self.feature = self.origFeature
-                    self.layer.updateFeature(self.feature)
-                    layerDetails = TOMsLabelLayerNames(self.layer)
-
-                    for labelLayerName in layerDetails.getCurrLabelLayerNames():
-                        labelLayer = QgsProject.instance().mapLayersByName(
-                            labelLayerName
-                        )[0]
-                        labelLayer.reload()
-
-            # Now commit changes and redraw
-
-            attrs1 = self.feature.attributes()
-            TOMsMessageLog.logMessage(
-                "In RestrictionDialogWrapper.accept: currRestriction: " + str(attrs1),
-                level=Qgis.Info,
+                RestrictionAction.OPEN,
             )
-            TOMsMessageLog.logMessage(
-                "In RestrictionDialogWrapper.accept. curr: {}".format(
-                    self.feature.geometry().asWkt()
-                ),
-                level=Qgis.Info,
-            )
+            self.layer.addFeature(self.feature)  # TH (added for v3)
+            self.saveAndClose()
+            return
 
-            # Make sure that the saving will not be executed immediately, but
-            # only when the event loop runs into the next iteration to avoid
-            # problems
-
-            TOMsMessageLog.logMessage(
-                "In RestrictionDialogWrapper.accept. Transaction Status 3: "
-                + str(self.transaction.currTransactionGroup.modified()),
-                level=Qgis.Info,
-            )
-
-            self.transaction.commitTransactionGroup()
-            TOMsMessageLog.logMessage(
-                "In RestrictionDialogWrapper.accept. Transaction Status 4: "
-                + str(self.transaction.currTransactionGroup.modified()),
-                level=Qgis.Info,
-            )
-
-        self.dialog.reject()
-
-        # ************* refresh the view. Might be able to set up a signal to get the proposals_panel to intervene
-
-        TOMsMessageLog.logMessage(
-            "In RestrictionDialogWrapper.accept. Finished", level=Qgis.Info
+        # Arriving here, this feature was created before this proposal, in a previous proposal
+        # that has been accepted. We need to:
+        #  - close it in the RestrictionsInProposals table
+        #  - clone it in the current Restrictions layer (with a new RestrictionID and no OpenDate)
+        #  - reset the original feature
+        addRestrictionToProposal(
+            restrictionId,
+            currRestrictionLayerTableID,
+            currProposalID,
+            RestrictionAction.CLOSE,
         )
 
-        self.dialog.close()
-        self.layer.removeSelection()
+        newFeature = QgsFeature(self.feature)
+        newFeature["RestrictionID"] = str(uuid.uuid4())
+        newFeature["OpenDate"] = None
+        newFeature["GeometryID"] = None
+        self.layer.addFeature(newFeature)
+        self.layer.updateFeature(self.origFeature)
 
+        addRestrictionToProposal(
+            newFeature["RestrictionID"],
+            currRestrictionLayerTableID,
+            currProposalID,
+            RestrictionAction.OPEN,
+        )
+
+        self.saveAndClose()
+
+    def saveAndClose(self):
+        self.transaction.commitTransactionGroup()
+        for labelLayerName in TOMsLabelLayerNames(self.layer).getCurrLabelLayerNames():
+            try:
+                QgsProject.instance().mapLayersByName(labelLayerName)[0].reload()
+            except IndexError:
+                pass  # No label for Signs
+        self.close()
+
+    def close(self):
+        self.dialog.reject()
+        self.layer.removeSelection()
         setupPanelTabs(self.proposalPanelDock)
 
     def reject(self):
-        TOMsMessageLog.logMessage("In RestrictionDialogWrapper.reject", level=Qgis.Info)
         self.dialog.reject()
-
+        self.layer.removeSelection()
         self.transaction.rollBackTransactionGroup()
-
         setupPanelTabs(self.proposalPanelDock)
 
     def show(self):
