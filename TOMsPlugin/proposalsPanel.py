@@ -13,7 +13,12 @@ import functools
 import os
 import re
 
-from qgis.core import Qgis, QgsProject  # QgsMapLayerRegistry,
+from qgis.core import (
+    Qgis,
+    QgsFeature,
+    QgsProject,
+    QgsVectorLayer,
+)
 from qgis.PyQt.QtCore import QCoreApplication, QDate, Qt
 from qgis.PyQt.QtGui import QIcon
 
@@ -28,7 +33,7 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import OverrideCursor, iface
 
-from .constants import ProposalStatus, UserPermission
+from .constants import ProposalStatus, UserPermission, RestrictionAction
 from .core.proposalsManager import TOMsProposalsManager
 from .core.tomsMessageLog import TOMsMessageLog
 from .core.tomsTransaction import TOMsTransaction
@@ -84,6 +89,14 @@ class ProposalsPanel:
         if UserPermission.PRINT:
             self.tomsToolbar.addWidget(self.toolButton)
 
+        if UserPermission.FULL_CONTROL:
+            self.mappingUpdatesAction = QAction("MU")
+            self.mappingUpdatesAction.triggered.connect(self.makeMappingUpdatesInProposal)
+            self.tomsToolbar.addAction(self.mappingUpdatesAction)
+            self.mappingUpdatesAction.setToolTip("Make mapping updates and masks live")
+        else:
+            self.mappingUpdatesAction = None
+
         self.toolButton.toggled.connect(self.__enablePrintTool)
         iface.mapCanvas().mapToolSet.connect(self.__onPrintToolSet)
 
@@ -100,6 +113,8 @@ class ProposalsPanel:
         self.searchBar.disableSearchBar()
         # print tool
         self.toolButton.setEnabled(False)
+        if self.mappingUpdatesAction:
+            self.mappingUpdatesAction.setEnabled(False)
         self.restrictionTools.disableTOMsToolbarItems()
 
         self.closeTOMs = False
@@ -231,6 +246,8 @@ class ProposalsPanel:
         # https://gis.stackexchange.com/questions/133228/how-to-deactivate-my-custom-tool-by-pressing-the-escape-key-using-pyqgis
 
         self.proposalsManager.setCurrentProposal(0)
+        if self.mappingUpdatesAction:
+            self.mappingUpdatesAction.setEnabled(True)
 
         # TODO: Deal with the change of project ... More work required on this
         # self.TOMsProject = QgsProject.instance()
@@ -264,6 +281,8 @@ class ProposalsPanel:
         self.searchBar.disableSearchBar()
         # print tool
         self.toolButton.setEnabled(False)
+        if self.mappingUpdatesAction:
+            self.mappingUpdatesAction.setEnabled(False)
 
         self.actionProposalsPanel.setChecked(False)
 
@@ -313,6 +332,58 @@ class ProposalsPanel:
         self.dock.cb_ProposalsList.currentIndexChanged.connect(
             self.onProposalListIndexChanged
         )
+
+    def makeMappingUpdatesInProposal(self):
+        """makeMappingUpdatesInProposal.
+
+        Add MappingUpdates and MappingUpdateMasks restrictions in current proposal
+        """
+
+        currProposalId = self.proposalsManager.currentProposal()
+        if currProposalId == 0:
+            QMessageBox.warning(
+                None, "ERROR", "Trying to push mapping updates into 'No Proposals'"
+            )
+            return
+
+        # Get layers without filters to have all features
+        try:
+            mappingUpdatesLayer = QgsVectorLayer(self.tableNames.getLayer("MappingUpdates").source(), providerLib="postgres")
+            mappingUpdateMasksLayer = QgsVectorLayer(self.tableNames.getLayer("MappingUpdateMasks").source(), providerLib="postgres")
+            ripLayer = self.tableNames.getLayer("RestrictionsInProposals")
+        except Exception:
+            raise RuntimeError("A layer is missing!")
+
+        i = 0
+        counts = [0, 0]
+        self.proposalTransaction.startTransactionGroup()
+        for layer, layerId in [(mappingUpdatesLayer, 101), (mappingUpdateMasksLayer, 102)]:
+            layer.startEditing()
+            # For each mapping update that does not have a RestrictionID in this proposal
+            for restriction in layer.getFeatures(f'''"ProposalID" = {currProposalId} and "RestrictionID" is NULL'''):
+                restriction["RestrictionID"] = restriction["GeometryID"]  # Copy the GeometryID
+                if not layer.updateFeature(restriction):
+                    QMessageBox.warning(None, "ERROR", "Unable to copy GeometryID into RestrictionID")
+                    self.proposalTransaction.rollBackTransactionGroup()
+                    return
+
+                # Add the restriction in RestrictionsInProposals table
+                newRip = QgsFeature(ripLayer.fields())
+                newRip["ProposalID"] = currProposalId
+                newRip["RestrictionTableID"] = layerId
+                newRip["RestrictionID"] = restriction["RestrictionID"]
+                newRip["ActionOnProposalAcceptance"] = RestrictionAction.OPEN.value
+                if not ripLayer.addFeature(newRip):
+                    QMessageBox.warning(None, "ERROR", "Unable to add feature in RestrictionsInProposals table")
+                    self.proposalTransaction.rollBackTransactionGroup()
+                    return
+
+                counts[i] += 1
+            layer.commitChanges()
+            i += 1
+
+        self.proposalTransaction.commitTransactionGroup()
+        QMessageBox.information(None, "Features added", f"Added {counts[0]} mapping updates, and {counts[1]} mapping update masks")
 
     def onNewProposal(self):
         TOMsMessageLog.logMessage("In onNewProposal", level=Qgis.Info)
