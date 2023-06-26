@@ -41,7 +41,6 @@ from .utils import setupPanelTabs
 
 class CreateRestrictionTool(QgsMapToolDigitizeFeature):
     def __init__(self):
-
         advancedDigitizingPanel = iface.cadDockWidget()
         super().__init__(iface.mapCanvas(), advancedDigitizingPanel)
         advancedDigitizingPanel.setVisible(True)
@@ -123,6 +122,11 @@ class CreateRestrictionTool(QgsMapToolDigitizeFeature):
         dialog = RestrictionDialogWrapper(self.layer(), feature)
         dialog.dialog.exec()
         iface.actionPan().trigger()
+
+    def deactivate(self):
+        super().deactivate()
+        if self.layer().isEditable():
+            self.layer().rollBack()
 
 
 class SelectRestrictionTool(QgsMapToolIdentify):
