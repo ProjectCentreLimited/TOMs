@@ -374,6 +374,7 @@ class ProposalsPanel:
 
         if self.buttonBox is None:
             TOMsMessageLog.logMessage("In onNewProposal. button box not found", level=Qgis.Info)
+            self.onRejectProposalDetailsFromForm()
 
             # self.button_box.accepted.disconnect()
         self.buttonBox.accepted.connect(
@@ -387,7 +388,7 @@ class ProposalsPanel:
             )
         )
 
-        self.buttonBox.rejected.connect(self.onRejectProposalDetailsFromForm)
+        self.proposalDialog.rejected.connect(self.onRejectProposalDetailsFromForm)
 
         self.proposalDialog.attributeForm().attributeChanged.connect(
             functools.partial(saveLastSelectedValue, self.newProposal, self.proposals)
@@ -416,10 +417,6 @@ class ProposalsPanel:
 
     def onRejectProposalDetailsFromForm(self):
         self.proposals.destroyEditCommand()
-        self.proposalDialog.reject()
-
-        # self.rollbackCurrentEdits()
-
         self.proposalTransaction.rollBackTransactionGroup()
 
     def onProposalDetails(self):
@@ -503,6 +500,10 @@ class ProposalsPanel:
         currProposalID = currProposalObject.getProposalNr()
         currProposalStatusID = currProposalObject.getProposalStatusID()
         currProposalTitle = currProposalObject.getProposalTitle()
+        if currProposalTitle == "":
+            proposalTransaction.rollBackTransactionGroup()
+            proposalsDialog.reject()
+            return
 
         newProposalStatusID = currProposalRecord[idxProposalStatusID]
         newProposalOpenDate = currProposalRecord[idxProposalOpenDate]
