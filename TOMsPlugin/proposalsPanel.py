@@ -501,7 +501,6 @@ class ProposalsPanel:
         currProposalStatusID = currProposalObject.getProposalStatusID()
         currProposalTitle = currProposalObject.getProposalTitle()
         if currProposalTitle == "":
-            proposalTransaction.rollBackTransactionGroup()
             proposalsDialog.reject()
             return
 
@@ -528,7 +527,6 @@ class ProposalsPanel:
                 currProposalObject.setProposalOpenDate(newProposalOpenDate)
 
                 if not currProposalObject.acceptProposal():
-                    proposalTransaction.rollBackTransactionGroup()
                     proposalsDialog.reject()
                     reply = QMessageBox.information(None, "Error", "Error in accepting proposal ...", QMessageBox.Ok)
                     TOMsMessageLog.logMessage(
@@ -556,7 +554,6 @@ class ProposalsPanel:
             )
             if reply == QMessageBox.Yes:
                 if not currProposalObject.rejectProposal():
-                    proposalTransaction.rollBackTransactionGroup()
                     proposalsDialog.reject()
                     TOMsMessageLog.logMessage(
                         "In onSaveProposalFormDetails. Error in transaction",
@@ -565,11 +562,9 @@ class ProposalsPanel:
                     return
 
                 proposalsDialog.attributeForm().save()
-                proposalsDialog.close()
                 proposalAcceptedRejected = True
 
-            else:
-                proposalsDialog.reject()
+                proposalsDialog.close()
 
         else:
             TOMsMessageLog.logMessage(
@@ -589,7 +584,7 @@ class ProposalsPanel:
                 pass
                 # self.Proposals.updateFeature(currProposalObject.getProposalRecord())  # TH (added for v3)
 
-            proposalsDialog.reject()
+            proposalsDialog.close()
 
             TOMsMessageLog.logMessage(
                 "In onSaveProposalFormDetails. ProposalTransaction modified Status: "
